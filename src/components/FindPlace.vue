@@ -170,6 +170,7 @@ export default {
       return error.allServersFailed ||
              error.invalidResponse ||
              error.statusError ||
+             error.timedOut ||
              (error.message && error.message.includes('Failed to download'));
     },
 

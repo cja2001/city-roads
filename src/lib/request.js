@@ -33,6 +33,15 @@ export default function request(url, options) {
     if (options.responseType) {
       req.responseType = options.responseType;
     }
+    let responseTimer;
+    if (options.responseTimeout) {
+      // Only limits how long we wait for the server to start answering, so
+      // that a slow download of a large response is not interrupted.
+      responseTimer = setTimeout(transferTimedOut, options.responseTimeout);
+      req.addEventListener('readystatechange', () => {
+        if (req.readyState >= 2) clearTimeout(responseTimer);
+      });
+    }
 
     if (options.headers) {
       Object.keys(options.headers).forEach(key => {
@@ -85,10 +94,22 @@ export default function request(url, options) {
     }
 
     function transferFailed() {
+      clearTimeout(responseTimer);
       reject(`Failed to download ${url}`);
     }
 
+    function transferTimedOut() {
+      progress.offCancel(cancelDownload);
+      req.removeEventListener('abort', transferCanceled, false);
+      req.abort();
+      reject({
+        timedOut: true,
+        message: `${url} did not respond in ${Math.round(options.responseTimeout / 1000)} seconds`
+      });
+    }
+
     function transferCanceled() {
+      clearTimeout(responseTimer);
       reject({
         cancelled: true,
         message: `Cancelled download of ${url}`

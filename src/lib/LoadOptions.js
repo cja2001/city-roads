@@ -52,8 +52,10 @@ export default class LoadOptions {
     */
     this.projector = undefined;
     this.wayFilter = undefined;
-    this.timeout = 900;
-    this.maxHeapByteSize = 1073741824;
+    // Overpass servers are less likely to queue or reject queries that ask for
+    // less time and memory. Large cities are usually served from the cache.
+    this.timeout = 180;
+    this.maxHeapByteSize = 536870912;
     this.outputMethod = 'skel'; // body
     Object.assign(this, overrides);
   }

@@ -81,13 +81,13 @@ export default class StreetNamesLayer {
   getQuery() {
     let grid = this.grid;
     if (grid.isArea && grid.id) {
-      return `[timeout:900][out:json];
+      return `[timeout:180][out:json];
 area(${grid.id})->.a;
 ${NAMED_ROADS}(area.a);
 out body;`;
     }
     if (grid.bboxString) {
-      return `[timeout:900][out:json][bbox:${grid.bboxString}];
+      return `[timeout:180][out:json][bbox:${grid.bboxString}];
 ${NAMED_ROADS};
 out body;`;
     }
