@@ -67,6 +67,12 @@
             Save the current screen as a vector image.
           </span>
         </div>
+        <div class='row'>
+          <a href='#'  @click.prevent='toKMLFile' class='col'>As a map file (.kml)</a> 
+          <span class='col c-2'>
+            Save all roads with their names. Opens in Google Earth and Google My Maps.
+          </span>
+        </div>
         <div v-if='false' class='row'>
           <a href='#' @click.prevent='toProtobuf' class='col'>To a .PBF file</a> 
           <span class='col c-2'>
@@ -108,7 +114,7 @@ import StreetNamesLayer from './lib/StreetNamesLayer.js';
 import BaseMapLayer, {BASE_MAPS} from './lib/BaseMapLayer.js';
 import generateZazzleLink from './lib/getZazzleLink.js';
 import appState from './lib/appState.js';
-import {getPrintableCanvas, getCanvas} from './lib/saveFile.js';
+import {getPrintableCanvas, getCanvas, toKML} from './lib/saveFile.js';
 import config from './config.js';
 import './lib/canvas2BlobPolyfill.js';
 import bus from './lib/bus.js';
@@ -174,6 +180,7 @@ export default {
   },
   methods: {
     dispose() {
+      this.grid = null;
       if (this.baseMapLayer) {
         this.baseMapLayer.dispose();
         this.baseMapLayer = null;
@@ -218,6 +225,7 @@ export default {
       gridLayer.id = 'lines';
       gridLayer.setGrid(grid);
       this.scene.add(gridLayer)
+      this.grid = grid;
 
       this.baseMapLayer = new BaseMapLayer(this.scene, grid);
       this.baseMapLayer.setStyle(this.baseMap);
@@ -276,6 +284,14 @@ export default {
         underSVG: this.baseMapLayer ? this.baseMapLayer.toSVG() : '',
         extraSVG: this.streetNames ? this.streetNames.toSVG() : ''
       })
+    },
+
+    toKMLFile() {
+      if (!this.grid) return;
+      toKML(this.grid, {
+        name: this.name,
+        color: this.scene.lineColor
+      });
     },
 
     updateLayers() {
