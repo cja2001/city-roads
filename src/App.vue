@@ -18,6 +18,14 @@
           </div>
         </div>
         <div class='row'>
+          <label class='col base-map-label' for='base-map-select'>Base map</label>
+          <span class='col c-2'>
+            <select id='base-map-select' v-model='baseMap' @change='changeBaseMap'>
+              <option v-for='(style, key) in baseMaps' :key='key' :value='key'>{{style.name}}</option>
+            </select>
+          </span>
+        </div>
+        <div class='row'>
           <label class='col street-names-toggle'>
             <input type='checkbox' v-model='showStreetNames' @change='toggleStreetNames'> Street names
           </label>
@@ -82,7 +90,7 @@
   </div>
 
   <editable-label v-if='placeFound' v-model='name' class='city-name' :printable='true' :style='{color: labelColorRGBA}' :overlay-manager='overlayManager'></editable-label>
-  <div v-if='placeFound' class='license printable can-drag' :style='{color: labelColorRGBA}'>data <a href='https://www.openstreetmap.org/about/' target="_blank" :style='{color: labelColorRGBA}'>© OpenStreetMap</a></div>
+  <div v-if='placeFound' class='license printable can-drag' :style='{color: labelColorRGBA}'>data <a href='https://www.openstreetmap.org/about/' target="_blank" :style='{color: labelColorRGBA}'>© OpenStreetMap</a><span v-if='baseMapAttribution'> · {{baseMapAttribution}}</span></div>
 </template>
 
 <script>
@@ -93,6 +101,7 @@ import ColorPicker from './components/ColorPicker.vue';
 import createScene from './lib/createScene.js';
 import GridLayer from './lib/GridLayer.js';
 import StreetNamesLayer from './lib/StreetNamesLayer.js';
+import BaseMapLayer, {BASE_MAPS} from './lib/BaseMapLayer.js';
 import generateZazzleLink from './lib/getZazzleLink.js';
 import appState from './lib/appState.js';
 import {getPrintableCanvas, getCanvas} from './lib/saveFile.js';
@@ -130,6 +139,8 @@ export default {
       backgroundColor: config.getBackgroundColor().toRgb(),
       streetNamesColor: config.getLabelColor().toRgb(),
       showStreetNames: true,
+      baseMaps: BASE_MAPS,
+      baseMap: BASE_MAPS[appState.get('base')] ? appState.get('base') : 'map',
       streetNamesStatus: 'idle',
       layers: []
     }
@@ -137,6 +148,10 @@ export default {
   computed: {
     labelColorRGBA() {
       return toRGBA(this.labelColor);
+    },
+    baseMapAttribution() {
+      let style = BASE_MAPS[this.baseMap];
+      return style && style.attribution;
     }
   },
   created() {
@@ -155,6 +170,10 @@ export default {
   },
   methods: {
     dispose() {
+      if (this.baseMapLayer) {
+        this.baseMapLayer.dispose();
+        this.baseMapLayer = null;
+      }
       if (this.streetNames) {
         this.streetNames.dispose();
         this.streetNames = null;
@@ -196,6 +215,9 @@ export default {
       gridLayer.setGrid(grid);
       this.scene.add(gridLayer)
 
+      this.baseMapLayer = new BaseMapLayer(this.scene, grid);
+      this.baseMapLayer.setStyle(this.baseMap);
+
       this.streetNames = new StreetNamesLayer(this.scene, grid, {
         color: this.streetNamesColor,
         onStatus: status => this.streetNamesStatus = status
@@ -206,6 +228,13 @@ export default {
 
     loadStreetNames() {
       if (this.streetNames) this.streetNames.load();
+    },
+
+    changeBaseMap() {
+      this.zazzleLink = null;
+      if (this.baseMap === 'map') appState.unset('base');
+      else appState.set('base', this.baseMap);
+      if (this.baseMapLayer) this.baseMapLayer.setStyle(this.baseMap);
     },
 
     toggleStreetNames() {
@@ -240,6 +269,7 @@ export default {
 
     toSVGFile(e) { 
       scene.saveToSVG(this.name, {
+        underSVG: this.baseMapLayer ? this.baseMapLayer.toSVG() : '',
         extraSVG: this.streetNames ? this.streetNames.toSVG() : ''
       })
     },
@@ -416,6 +446,9 @@ function recordOpenClick(link) {
       margin-left: 14px;
     }
   }
+.base-map-label {
+  align-items: center;
+}
 .street-names-toggle {
   align-items: center;
   white-space: nowrap;
