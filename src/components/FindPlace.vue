@@ -256,6 +256,8 @@ export default {
       this.restartLoadingMonitor();
       Query.runFromOptions(new LoadOptions({
         wayFilter: Query.Road,
+        // Include tags, so street names come with the roads in one request.
+        outputMethod: 'body',
         areaId: suggestion.areaId,
         bbox: suggestion.bbox
       }), this.generateNewProgressToken())
