@@ -38,10 +38,14 @@ export default function request(url, options) {
       // Only limits how long we wait for the server to start answering, so
       // that a slow download of a large response is not interrupted.
       responseTimer = setTimeout(transferTimedOut, options.responseTimeout);
-      req.addEventListener('readystatechange', () => {
-        if (req.readyState >= 2) clearTimeout(responseTimer);
-      });
     }
+    let responseStarted = false;
+    req.addEventListener('readystatechange', () => {
+      if (req.readyState < 2 || responseStarted) return;
+      responseStarted = true;
+      clearTimeout(responseTimer);
+      if (options.onResponseStart) options.onResponseStart(req.status);
+    });
 
     if (options.headers) {
       Object.keys(options.headers).forEach(key => {

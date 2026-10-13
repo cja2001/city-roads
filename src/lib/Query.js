@@ -1,6 +1,7 @@
 import postData from './postData';
 import Grid from './Grid.js';
 import findBoundaryByName from './findBoundaryByName.js';
+import clipToBoundary from './clipToBoundary.js';
 
 export default class Query {
   /**
@@ -56,7 +57,12 @@ export default class Query {
           err.invalidResponse = true;
           throw err;
         }
-        let grid = Grid.fromOSMResponse(osmResponse.elements)
+        let elements = osmResponse.elements;
+        let bounds = this.queryBounds;
+        if (bounds && bounds.clipToBoundary && bounds.boundary) {
+          elements = clipToBoundary(elements, bounds.boundary);
+        }
+        let grid = Grid.fromOSMResponse(elements)
         grid.queryBounds = this.queryBounds;
         return grid;
       });
