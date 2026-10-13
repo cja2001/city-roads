@@ -11,7 +11,7 @@ let backends = [
 
 // When a server is overloaded it may accept the request and never answer.
 // After this long we give up on it and ask the next server.
-const SERVER_TIMEOUT_MS = 150 * 1000;
+const SERVER_TIMEOUT_MS = 60 * 1000;
 
 export default function postData(data, progress) {
   progress = progress || new Progress();
