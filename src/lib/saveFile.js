@@ -1,5 +1,21 @@
 // import protobufExport from './protobufExport.js';
 import svgExport from './svgExport.js';
+import kmlExport from './kmlExport.js';
+
+export function toKML(grid, options) {
+  options = options || {};
+  let kml = kmlExport(grid, options);
+  let blob = new Blob([kml], {type: 'application/vnd.google-earth.kml+xml'});
+  let url = window.URL.createObjectURL(blob);
+  let fileName = getFileName(options.name, '.kml');
+  setTimeout(() => {
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    revokeLater(url);
+  }, 30);
+}
 
 export function toSVG(scene, options) {
   options = options || {};
