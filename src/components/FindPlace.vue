@@ -364,39 +364,52 @@ function parseBBox(bboxStr) {
 @import('../vars.styl');
 .find-place  {
   width: desktop-controls-width;
+  font-family: ui-font;
+  color: strong-text;
 }
 
 h3.site-header {
   margin: 0;
-  font-weight: normal;
-  font-size: 32px;
+  font-weight: 700;
+  font-size: 34px;
+  letter-spacing: -0.5px;
   text-align: center;
+  color: strong-text;
 }
 
 input {
   border: none;
   flex: 1;
-  font-family: 'Avenir', Helvetica, Arial, sans-serif;
+  font-family: ui-font;
   padding: 0;
-  color: #434343;
+  color: strong-text;
+  background: transparent;
   height: 100%;
   font-size: 16px;
   &:focus {
     outline: none;
+  }
+  &::placeholder {
+    color: #94A3B8;
   }
 }
 
 .search-box {
   position: relative;
   background-color: emphasis-background;
-  padding: 0 8px;
-  padding: 0 0 0 8px;
-
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 -1px 0px rgba(0,0,0,0.02);
-  height: 48px;
+  padding: 0 6px 0 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  height: 54px;
   display: flex;
+  align-items: center;
   font-size: 16px;
   cursor: text;
+  transition: box-shadow 0.2s;
+  &:focus-within {
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12), 0 0 0 3px rgba(37, 99, 235, 0.18);
+  }
   a {
     cursor: pointer;
   }
@@ -408,13 +421,15 @@ input {
 }
 
 .prompt {
-  padding: 4px;
+  padding: 8px 12px;
   text-align: center;
   font-size: 12px;
+  color: muted-text;
 }
 
 .search-submit {
-  padding: 0 8px;
+  height: 42px;
+  padding: 0 16px;
   align-items: center;
   text-decoration: none;
   display: flex;
@@ -422,29 +437,42 @@ input {
   justify-content: center;
   outline: none;
   z-index: 1;
-  color: highlight-color
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  background: brand-gradient;
+  border-radius: 10px;
+  box-shadow: brand-shadow;
   &:hover {
-    color: emphasis-background;
-    background: highlight-color;
+    background: brand-gradient-hover;
   }
 }
 
 .suggestion {
-  display: block
-  min-height: 64px
+  min-height: 56px
   align-items: center;
   border-bottom: 1px solid border-color
   display: flex
-  padding: 0 10px;
+  padding: 0 16px;
   text-decoration: none
-  color: highlight-color
+  color: strong-text
+  font-weight: 500;
+  transition: background 0.15s;
+  &:hover {
+    background: soft-background;
+    color: highlight-color;
+  }
+  small {
+    color: muted-text;
+    font-weight: 400;
+  }
 }
 
 .suggestions {
   position: relative;
   background: white
   .note {
-    font-size: 10px;
+    font-size: 11px;
     font-style: italic;
   }
 
@@ -452,23 +480,32 @@ input {
     list-style-type: none;
     margin: 0;
     padding: 0;
-    max-height: calc(100vh - 128px);
+    max-height: calc(100vh - 140px);
     overflow-y: auto;
     overflow-x: hidden;
+  }
+  li:last-child .suggestion {
+    border-bottom: 0;
   }
 }
 
 .message,
 .loading {
-  padding: 4px 8px;
+  padding: 12px 16px;
   position: relative;
+  font-size: 14px;
 }
 .loading svg {
   margin-right: 8px;
 }
 
 .shadow {
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2)
+  margin-top: 10px;
+  background: white;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
 }
 
 .error {
@@ -479,7 +516,7 @@ input {
   position: absolute;
   display: flex;
   flex-direction: column;
-  top: 8px;
+  top: 12px;
   left: 50%;
 
   transform: translateX(-50%) translateY(0);
@@ -494,23 +531,26 @@ input {
   transform: translateX(-50%) translateY(-143px);
 }
 .load-padding {
-  padding-left: 16px;
+  padding-left: 24px;
+  color: muted-text;
 }
 .description {
-  padding: 8px;
+  padding: 8px 8px 20px;
   margin: 0;
   text-align: center;
+  color: muted-text;
 }
 
 .cancel-request {
   position: absolute;
-  right: 4px;
-  top: 4px;
+  right: 12px;
+  top: 12px;
   font-size: 12px;
+  font-weight: 600;
 }
 .error-note {
   font-size: 12px;
-  color: #666;
+  color: muted-text;
   margin: 8px 0;
 }
 .error-actions {
@@ -518,14 +558,16 @@ input {
 }
 .retry-btn {
   display: inline-block;
-  padding: 8px 24px;
-  background: highlight-color;
+  padding: 9px 24px;
+  background: brand-gradient;
   color: white;
   text-decoration: none;
-  border-radius: 4px;
+  border-radius: 10px;
   font-size: 14px;
+  font-weight: 600;
+  box-shadow: brand-shadow;
   &:hover {
-    opacity: 0.9;
+    background: brand-gradient-hover;
   }
 }
 .error-links {
@@ -539,11 +581,11 @@ input {
 
 @media (max-width: small-screen) {
   .find-place {
-    width: 100%;
+    width: calc(100% - 16px);
   }
   .find-place.centered {
     top: 8px;
-    left: 0;
+    left: 8px;
     transform: none;
   }
   .message {

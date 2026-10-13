@@ -20,7 +20,7 @@
         <div class='row'>
           <label class='col base-map-label' for='base-map-select'>Base map</label>
           <span class='col c-2'>
-            <select id='base-map-select' v-model='baseMap' @change='changeBaseMap'>
+            <select id='base-map-select' class='select' v-model='baseMap' @change='changeBaseMap'>
               <option v-for='(style, key) in baseMaps' :key='key' :value='key'>{{style.name}}</option>
             </select>
           </span>
@@ -394,13 +394,12 @@ function recordOpenClick(link) {
 @import('./vars.styl');
 
 #app {
-  margin: 8px;
+  margin: 12px;
   max-height: 100vh;
   position: absolute;
   z-index: 1;
-  h3 {
-    font-weight: normal;
-  }
+  font-family: ui-font;
+  color: strong-text;
 }
 
 .can-drag {
@@ -424,86 +423,156 @@ function recordOpenClick(link) {
 }
 
 .controls {
-  height: 48px;
-  background: white;
   display: flex;
   flex-direction: row;
-  align-items: stretch;
+  gap: 8px;
   width: desktop-controls-width;
-  justify-content: space-around;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 -1px 0px rgba(0,0,0,0.02);
 
   a {
-    text-decoration: none;
+    flex: 1;
+    height: 44px;
+    margin: 0;
+    border: 0;
+    border-radius: 999px;
     display: flex;
     justify-content: center;
     align-items: center;
-    color: highlight-color;
-    margin: 0;
-    border: 0;
-    &:hover {
-      color: emphasis-background;
-      background: highlight-color;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+    &:active {
+      transform: scale(0.98);
     }
-  }
-  a.try-another {
-    flex: 1;
   }
 
   a.print-button {
-    flex: 1;
-    border-right: 1px solid border-color;
-    &:focus {
-      border: 1px dashed highlight-color;
+    color: white;
+    background: brand-gradient;
+    box-shadow: brand-shadow;
+    &:hover {
+      background: brand-gradient-hover;
+      box-shadow: 0 8px 26px rgba(74, 144, 255, 0.5);
+    }
+  }
+
+  a.try-another {
+    color: strong-text;
+    background: card-background;
+    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+    &:hover {
+      background: white;
     }
   }
 }
 
 .col {
-    display: flex;
-    flex: 1;
-    select {
-      margin-left: 14px;
-    }
-  }
+  display: flex;
+  flex: 1;
+  align-items: center;
+}
+
 .street-names-notice {
   position: fixed;
-  left: 8px;
-  bottom: 8px;
+  left: 12px;
+  bottom: 12px;
   z-index: 1;
-  padding: 6px 10px;
+  padding: 8px 14px;
+  font-family: ui-font;
   font-size: 13px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  font-weight: 500;
+  color: strong-text;
+  background: card-background;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
 }
+
 .base-map-label {
   align-items: center;
 }
+
+.select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  padding: 8px 34px 8px 12px;
+  font-family: ui-font;
+  font-size: 14px;
+  color: strong-text;
+  border: 1px solid border-color;
+  border-radius: 10px;
+  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
+  cursor: pointer;
+  &:focus {
+    outline: none;
+    border-color: highlight-color;
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  }
+}
+
 .street-names-toggle {
-  align-items: center;
   white-space: nowrap;
   margin-right: 8px;
   cursor: pointer;
+  gap: 10px;
+
+  // A switch instead of the default checkbox.
   input {
-    width: auto;
-    height: auto;
-    margin: 0 6px 0 0;
+    appearance: none;
+    -webkit-appearance: none;
+    position: relative;
+    flex-shrink: 0;
+    width: 38px;
+    height: 22px;
+    margin: 0;
+    border-radius: 999px;
+    background: #CBD5E1;
+    cursor: pointer;
+    transition: background 0.2s;
+    &::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: white;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+      transition: transform 0.2s;
+    }
+    &:checked {
+      background: highlight-color;
+    }
+    &:checked::after {
+      transform: translateX(16px);
+    }
+    &:focus-visible {
+      outline: 2px solid highlight-color;
+      outline-offset: 2px;
+    }
   }
 }
+
 .street-names-status {
-  font-size: 14px;
-  align-items: center;
+  font-size: 13px;
+  color: muted-text;
 }
+
 .row {
-  margin-top: 4px;
+  margin-top: 8px;
   display: flex;
   flex-direction: row;
-  min-height: 32px;
+  align-items: center;
+  min-height: 36px;
+  font-size: 14px;
 }
+
 .colors {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
+  gap: 6px 0;
 
   .color-container {
     display: flex;
@@ -513,7 +582,10 @@ function recordOpenClick(link) {
   }
 
   .color-label {
-    font-size: 12px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: muted-text;
+    text-align: center;
   }
 }
 
@@ -524,31 +596,84 @@ a {
   color: highlight-color
 }
 a:focus {
-  border: 1px dashed highlight-color;
   outline: none;
 }
+a:focus-visible {
+  outline: 2px solid highlight-color;
+  outline-offset: 2px;
+}
+
 .print-window {
-  max-height: calc(100vh - 48px);
+  margin-top: 10px;
+  max-height: calc(100vh - 80px);
   overflow-y: auto;
-  border-top: 1px solid border-color;
-  background: white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   width: desktop-controls-width;
-  padding: 8px;
-  .row a {
-    margin-right: 4px;
-  }
+  padding: 18px 20px 20px;
+  background: card-background;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: card-radius;
+  box-shadow: card-shadow;
+  animation: panelIn 0.3s cubic-bezier(.22, 1, .36, 1) both;
 
   h3 {
-    margin: 8px 0;
-    text-align: right;
+    margin: 20px 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-align: left;
+    color: highlight-color;
+  }
+  h3:first-child {
+    margin-top: 0;
+  }
+
+  // Export actions look like buttons.
+  .row a.col {
+    flex: 0 0 132px;
+    justify-content: center;
+    margin: 0 12px 0 0;
+    padding: 9px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: strong-text;
+    background: soft-background;
+    border: 0;
+    border-radius: 10px;
+    transition: background 0.2s, color 0.2s;
+    &:hover {
+      color: white;
+      background: brand-gradient;
+    }
+  }
+  .row .c-2 {
+    font-size: 13px;
+    color: muted-text;
+  }
+
+  p {
+    font-size: 13px;
+    line-height: 1.5;
+    color: muted-text;
+  }
+}
+
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
 .message {
-  border-top: 1px solid border-color
-  border-bottom: 1px solid border-color
-  background: #F5F5F5;
+  background: soft-background;
+  border-radius: 10px;
 }
 
 .preview-actions {
@@ -600,8 +725,8 @@ a:focus {
 
 @media (max-width: small-screen) {
   #app {
-    width: 100%;
-    margin: 0;
+    width: calc(100% - 16px);
+    margin: 8px;
 
     .preview-actions,.error,
     .controls, .print-window {
@@ -613,6 +738,11 @@ a:focus {
 
     .print-window {
       font-size: 14px;
+      max-height: calc(100vh - 72px);
+      padding: 16px;
+    }
+    .print-window .row a.col {
+      flex-basis: 112px;
     }
 
   }
