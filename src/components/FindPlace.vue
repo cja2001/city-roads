@@ -73,7 +73,7 @@
 import LoadingIcon from './LoadingIcon.vue';
 import Query from '../lib/Query.js';
 import request from '../lib/request.js';
-import findBoundaryByName from '../lib/findBoundaryByName.js';
+import findBoundaryByName, {findBoundaryByAreaId} from '../lib/findBoundaryByName.js';
 import appState from '../lib/appState.js';
 import Grid from '../lib/Grid.js';
 import queryState from '../lib/appState.js';
@@ -254,13 +254,19 @@ export default {
       
       // it may take a while to load data. 
       this.restartLoadingMonitor();
-      Query.runFromOptions(new LoadOptions({
-        wayFilter: Query.Road,
-        // Include tags, so street names come with the roads in one request.
-        outputMethod: 'body',
-        areaId: suggestion.areaId,
-        bbox: suggestion.bbox
-      }), this.generateNewProgressToken())
+      let progress = this.generateNewProgressToken();
+      withBoundary(suggestion)
+      .then(place => {
+        if (progress.isCancelled) throw {cancelled: true};
+        return Query.runFromOptions(new LoadOptions({
+          wayFilter: Query.Road,
+          // Include tags, so street names come with the roads in one request.
+          outputMethod: 'body',
+          areaId: place.areaId,
+          bbox: place.bbox,
+          boundary: place.boundary
+        }), progress);
+      })
       .then(grid => {
         this.loading = null;
         if (!grid.hasRoads()) {
@@ -306,6 +312,18 @@ export default {
       return this.progressToken;
     }
   }
+}
+
+/**
+ * A place restored from the url only knows its area id. Look up its outline
+ * so it can be loaded with a bounding box query like a searched place.
+ */
+function withBoundary(suggestion) {
+  if (!suggestion.areaId || suggestion.bbox) return Promise.resolve(suggestion);
+
+  return findBoundaryByAreaId(suggestion.areaId)
+    .then(found => found ? Object.assign({}, suggestion, {bbox: found.bbox, boundary: found.boundary}) : suggestion)
+    .catch(() => suggestion);
 }
 
 function serializeBBox(bbox) {

@@ -1,5 +1,10 @@
 import request from './request.js';
 
+const NOMINATIM = 'https://nominatim.openstreetmap.org';
+// Ask for a simplified outline of each place, so roads can be clipped to it
+// without relying on the area index of Overpass servers.
+const POLYGON_PARAMS = 'format=json&polygon_geojson=1&polygon_threshold=0.0003';
+
 let cachedResults = new Map();
 
 export default function findBoundaryByName(inputName) {
@@ -7,12 +12,27 @@ export default function findBoundaryByName(inputName) {
   if (results) return Promise.resolve(results);
 
   let name = encodeURIComponent(inputName);
-  return request(`https://nominatim.openstreetmap.org/search?format=json&q=${name}`, {responseType: 'json'})
+  return request(`${NOMINATIM}/search?${POLYGON_PARAMS}&limit=10&q=${name}`, {responseType: 'json'})
       .then(extractBoundaries)
       .then(x => {
         cachedResults.set(inputName, x);
         return x;
       });
+}
+
+/**
+ * Finds the outline and bounding box of an Overpass area id (relation or way).
+ * Resolves to undefined when the place cannot be found.
+ */
+export function findBoundaryByAreaId(areaId) {
+  areaId = Number(areaId);
+  let osmId;
+  if (areaId >= 36e8) osmId = 'R' + (areaId - 36e8);
+  else if (areaId >= 24e8) osmId = 'W' + (areaId - 24e8);
+  else return Promise.resolve();
+
+  return request(`${NOMINATIM}/lookup?${POLYGON_PARAMS}&osm_ids=${osmId}`, {responseType: 'json'})
+    .then(rows => extractBoundaries(rows || [])[0]);
 }
 
 function extractBoundaries(x) {
@@ -37,10 +57,13 @@ function extractBoundaries(x) {
           Number.parseFloat(row.boundingbox[3]),
         ];
       }
+      let geojson = row.geojson;
+      let boundary = geojson && (geojson.type === 'Polygon' || geojson.type === 'MultiPolygon') ? geojson : undefined;
 
       return {
         areaId,
         bbox,
+        boundary,
         lat: row.lat,
         lon: row.lon,
         osmId: row.osm_id,
