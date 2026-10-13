@@ -9,6 +9,8 @@ import tinycolor from 'tinycolor2';
  */
 const NAMED_ROADS = 'way[highway~"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|pedestrian)(_link)?$"][name]';
 
+const NAMED_HIGHWAY = /^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|living_street|pedestrian)(_link)?$/;
+
 const RANK = {
   motorway: 6, trunk: 6, primary: 5, secondary: 4, tertiary: 3,
   unclassified: 2, residential: 2, living_street: 1, pedestrian: 1
@@ -65,6 +67,15 @@ export default class StreetNamesLayer {
   }
 
   load() {
+    // Roads downloaded straight from OpenStreetMap already carry their tags, so
+    // the names are there and no second request is needed. Cached cities only
+    // have geometry and need to ask Overpass for names.
+    if (this.grid.elements.some(element => element.type === 'way' && element.tags)) {
+      this.setWays(this.grid.elements);
+      this.setStatus(this.candidates.length ? 'ready' : 'empty');
+      return Promise.resolve();
+    }
+
     this.setStatus('loading');
     this.progress = new Progress();
     return postData(this.getQuery(), this.progress).then(response => {
@@ -103,19 +114,19 @@ out body;`;
     let nodes = this.grid.nodes;
     let candidates = [];
 
-    elements.forEach(way => {
-      if (way.type !== 'way' || !way.tags || !way.tags.name || !way.nodes) return;
+    let namedWays = elements.filter(way => way.type === 'way' && way.nodes &&
+      way.tags && way.tags.name && NAMED_HIGHWAY.test(way.tags.highway || ''));
+
+    joinWaysByName(namedWays).forEach(street => {
       let points = [];
-      way.nodes.forEach(id => {
+      street.nodes.forEach(id => {
         let node = nodes.get(id);
         if (node) points.push(project(node));
       });
       if (points.length < 2) return;
 
-      let highway = (way.tags.highway || '').replace(/_link$/, '');
-      let rank = RANK[highway] || 1;
       splitIntoStraightRuns(points).forEach(run => {
-        candidates.push({name: way.tags.name, rank, ...run});
+        candidates.push({name: street.name, rank: street.rank, ...run});
       });
     });
 
@@ -292,6 +303,60 @@ ${texts}
 
 function getFont(fontSize) {
   return fontSize + 'px Helvetica, Arial, sans-serif';
+}
+
+/**
+ * OpenStreetMap splits streets into many short ways (often one per block).
+ * Joins ways that share a name and an end node into longer chains, so long
+ * streets get labels along their whole length instead of only on long blocks.
+ */
+function joinWaysByName(ways) {
+  let byName = new Map();
+  ways.forEach(way => {
+    let group = byName.get(way.tags.name);
+    if (!group) byName.set(way.tags.name, group = []);
+    group.push(way);
+  });
+
+  let streets = [];
+  byName.forEach((group, name) => {
+    let used = new Array(group.length).fill(false);
+    let byEndpoint = new Map();
+    group.forEach((way, index) => {
+      [way.nodes[0], way.nodes[way.nodes.length - 1]].forEach(id => {
+        let list = byEndpoint.get(id);
+        if (!list) byEndpoint.set(id, list = []);
+        list.push(index);
+      });
+    });
+
+    let takeNext = (endpoint) => {
+      let candidates = byEndpoint.get(endpoint) || [];
+      for (let i = 0; i < candidates.length; ++i) {
+        let index = candidates[i];
+        if (used[index]) continue;
+        used[index] = true;
+        let wayNodes = group[index].nodes;
+        return wayNodes[0] === endpoint ? wayNodes : wayNodes.slice().reverse();
+      }
+    };
+
+    group.forEach((way, index) => {
+      if (used[index]) return;
+      used[index] = true;
+      let chain = way.nodes.slice();
+      let rank = getRank(way);
+      let next;
+      while ((next = takeNext(chain[chain.length - 1]))) chain.push(...next.slice(1));
+      while ((next = takeNext(chain[0]))) chain.unshift(...next.slice().reverse().slice(0, -1));
+      streets.push({name, rank, nodes: chain});
+    });
+  });
+  return streets;
+}
+
+function getRank(way) {
+  return RANK[way.tags.highway.replace(/_link$/, '')] || 1;
 }
 
 /**

@@ -90,6 +90,10 @@
   </div>
 
   <editable-label v-if='placeFound' v-model='name' class='city-name' :printable='true' :style='{color: labelColorRGBA}' :overlay-manager='overlayManager'></editable-label>
+  <div v-if='placeFound && showStreetNames && (streetNamesStatus === "loading" || streetNamesStatus === "error")' class='street-names-notice'>
+    <span v-if='streetNamesStatus === "loading"'>Loading street names...</span>
+    <span v-else>Could not load street names. <a href='#' @click.prevent='loadStreetNames'>Try again</a></span>
+  </div>
   <div v-if='placeFound' class='license printable can-drag' :style='{color: labelColorRGBA}'>data <a href='https://www.openstreetmap.org/about/' target="_blank" :style='{color: labelColorRGBA}'>© OpenStreetMap</a><span v-if='baseMapAttribution'> · {{baseMapAttribution}}</span></div>
 </template>
 
@@ -446,6 +450,16 @@ function recordOpenClick(link) {
       margin-left: 14px;
     }
   }
+.street-names-notice {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  z-index: 1;
+  padding: 6px 10px;
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
 .base-map-label {
   align-items: center;
 }
