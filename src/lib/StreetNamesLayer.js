@@ -229,7 +229,7 @@ out body;`;
       });
     }
 
-    let halo = tinycolor(this.scene.background).setAlpha(0.85).toRgbString();
+    let halo = tinycolor(this.scene.background).clone().setAlpha(0.85).toRgbString();
     let fill = this._color.toRgbString();
     ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
     ctx.textAlign = 'center';
