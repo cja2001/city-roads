@@ -17,6 +17,25 @@
             </div>
           </div>
         </div>
+        <div class='row'>
+          <label class='col base-map-label' for='base-map-select'>Base map</label>
+          <span class='col c-2'>
+            <select id='base-map-select' v-model='baseMap' @change='changeBaseMap'>
+              <option v-for='(style, key) in baseMaps' :key='key' :value='key'>{{style.name}}</option>
+            </select>
+          </span>
+        </div>
+        <div class='row'>
+          <label class='col street-names-toggle'>
+            <input type='checkbox' v-model='showStreetNames' @change='toggleStreetNames'> Street names
+          </label>
+          <span class='col c-2 street-names-status'>
+            <span v-if='streetNamesStatus === "loading"'>Loading street names from OpenStreetMap...</span>
+            <span v-else-if='streetNamesStatus === "error"'>Could not load street names. <a href='#' @click.prevent='loadStreetNames'>Try again</a></span>
+            <span v-else-if='streetNamesStatus === "empty"'>No named streets found in this area.</span>
+            <span v-else>Zoom in to see more names.</span>
+          </span>
+        </div>
 
         <h3>Export</h3>
         <div class='row'>
@@ -71,7 +90,7 @@
   </div>
 
   <editable-label v-if='placeFound' v-model='name' class='city-name' :printable='true' :style='{color: labelColorRGBA}' :overlay-manager='overlayManager'></editable-label>
-  <div v-if='placeFound' class='license printable can-drag' :style='{color: labelColorRGBA}'>data <a href='https://www.openstreetmap.org/about/' target="_blank" :style='{color: labelColorRGBA}'>© OpenStreetMap</a></div>
+  <div v-if='placeFound' class='license printable can-drag' :style='{color: labelColorRGBA}'>data <a href='https://www.openstreetmap.org/about/' target="_blank" :style='{color: labelColorRGBA}'>© OpenStreetMap</a><span v-if='baseMapAttribution'> · {{baseMapAttribution}}</span></div>
 </template>
 
 <script>
@@ -81,6 +100,8 @@ import EditableLabel from './components/EditableLabel.vue';
 import ColorPicker from './components/ColorPicker.vue';
 import createScene from './lib/createScene.js';
 import GridLayer from './lib/GridLayer.js';
+import StreetNamesLayer from './lib/StreetNamesLayer.js';
+import BaseMapLayer, {BASE_MAPS} from './lib/BaseMapLayer.js';
 import generateZazzleLink from './lib/getZazzleLink.js';
 import appState from './lib/appState.js';
 import {getPrintableCanvas, getCanvas} from './lib/saveFile.js';
@@ -116,12 +137,21 @@ export default {
       settingsOpen: false,
       labelColor: config.getLabelColor().toRgb(),
       backgroundColor: config.getBackgroundColor().toRgb(),
+      streetNamesColor: config.getLabelColor().toRgb(),
+      showStreetNames: true,
+      baseMaps: BASE_MAPS,
+      baseMap: BASE_MAPS[appState.get('base')] ? appState.get('base') : 'map',
+      streetNamesStatus: 'idle',
       layers: []
     }
   },
   computed: {
     labelColorRGBA() {
       return toRGBA(this.labelColor);
+    },
+    baseMapAttribution() {
+      let style = BASE_MAPS[this.baseMap];
+      return style && style.attribution;
     }
   },
   created() {
@@ -140,6 +170,14 @@ export default {
   },
   methods: {
     dispose() {
+      if (this.baseMapLayer) {
+        this.baseMapLayer.dispose();
+        this.baseMapLayer = null;
+      }
+      if (this.streetNames) {
+        this.streetNames.dispose();
+        this.streetNames = null;
+      }
       if (this.scene) {
         this.scene.dispose();
         window.scene = null;
@@ -176,6 +214,34 @@ export default {
       gridLayer.id = 'lines';
       gridLayer.setGrid(grid);
       this.scene.add(gridLayer)
+
+      this.baseMapLayer = new BaseMapLayer(this.scene, grid);
+      this.baseMapLayer.setStyle(this.baseMap);
+
+      this.streetNames = new StreetNamesLayer(this.scene, grid, {
+        color: this.streetNamesColor,
+        onStatus: status => this.streetNamesStatus = status
+      });
+      if (!this.showStreetNames) this.streetNames.hide();
+      this.loadStreetNames();
+    },
+
+    loadStreetNames() {
+      if (this.streetNames) this.streetNames.load();
+    },
+
+    changeBaseMap() {
+      this.zazzleLink = null;
+      if (this.baseMap === 'map') appState.unset('base');
+      else appState.set('base', this.baseMap);
+      if (this.baseMapLayer) this.baseMapLayer.setStyle(this.baseMap);
+    },
+
+    toggleStreetNames() {
+      this.zazzleLink = null;
+      if (!this.streetNames) return;
+      if (this.showStreetNames) this.streetNames.show();
+      else this.streetNames.hide();
     },
 
     startOver() {
@@ -190,6 +256,8 @@ export default {
       this.showSettings = false;
       this.backgroundColor = config.getBackgroundColor().toRgb();
       this.labelColor = config.getLabelColor().toRgb();
+      this.streetNamesColor = config.getLabelColor().toRgb();
+      this.streetNamesStatus = 'idle';
 
       document.body.style.backgroundColor = config.getBackgroundColor().toRgbString();
       getCanvas().style.visibility = 'hidden';
@@ -200,7 +268,10 @@ export default {
     },
 
     toSVGFile(e) { 
-      scene.saveToSVG(this.name)
+      scene.saveToSVG(this.name, {
+        underSVG: this.baseMapLayer ? this.baseMapLayer.toSVG() : '',
+        extraSVG: this.streetNames ? this.streetNames.toSVG() : ''
+      })
     },
 
     updateLayers() {
@@ -227,7 +298,12 @@ export default {
 
       newLayers.push(
         new ColorLayer('background', this.backgroundColor, this.setBackgroundColor),
-        new ColorLayer('labels', this.labelColor, newColor => this.labelColor = newColor)
+        new ColorLayer('labels', this.labelColor, newColor => this.labelColor = newColor),
+        new ColorLayer('street names', this.streetNamesColor, newColor => {
+          this.streetNamesColor = newColor;
+          this.zazzleLink = null;
+          if (this.streetNames) this.streetNames.color = newColor;
+        })
       );
 
       this.layers = newLayers;
@@ -370,6 +446,24 @@ function recordOpenClick(link) {
       margin-left: 14px;
     }
   }
+.base-map-label {
+  align-items: center;
+}
+.street-names-toggle {
+  align-items: center;
+  white-space: nowrap;
+  margin-right: 8px;
+  cursor: pointer;
+  input {
+    width: auto;
+    height: auto;
+    margin: 0 6px 0 0;
+  }
+}
+.street-names-status {
+  font-size: 14px;
+  align-items: center;
+}
 .row {
   margin-top: 4px;
   display: flex;

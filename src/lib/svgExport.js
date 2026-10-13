@@ -9,7 +9,7 @@ Data © OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright
 -->`;
     },
     close() {
-      return getPrintableElements();
+      return (options.extraSVG || '') + getPrintableElements();
     }
   };
 
@@ -27,7 +27,15 @@ Data © OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright
 
   const svg = toSVG(renderer, svgExportSettings);
 
-  return svg;
+  return options.underSVG ? insertUnderLines(svg, options.underSVG) : svg;
+
+  function insertUnderLines(svg, content) {
+    // Place content right after the background (or the style block when there
+    // is no background), so that roads are drawn on top of it.
+    let background = svg.match(/<rect id="background"[^>]*><\/rect>/);
+    let anchor = background ? background.index + background[0].length : svg.indexOf('</style>') + '</style>'.length;
+    return svg.slice(0, anchor) + '\n' + content + svg.slice(anchor);
+  }
 
   function getPrintableElements() {
     let dpr = renderer.getPixelRatio();
