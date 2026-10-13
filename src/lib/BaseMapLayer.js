@@ -129,12 +129,10 @@ export default class BaseMapLayer {
 
     let corners = [[0, 0], [cssWidth, 0], [0, cssHeight], [cssWidth, cssHeight]]
       .map(([x, y]) => this.toLonLat(screenToScene(t, x, y)));
-    let range;
-    while (true) {
-      range = getTileRange(corners, z);
-      let count = (range.maxX - range.minX + 1) * (range.maxY - range.minY + 1);
-      if (count <= MAX_TILES || z === 0) break;
+    let range = getTileRange(corners, z);
+    while (z > 0 && countTiles(range) > MAX_TILES) {
       z -= 1;
+      range = getTileRange(corners, z);
     }
 
     ctx.setTransform(t.a * pixelRatio, t.b * pixelRatio, t.c * pixelRatio, t.d * pixelRatio, t.e * pixelRatio, t.f * pixelRatio);
@@ -262,6 +260,10 @@ function getTileRange(lonLats, z) {
     minY: clamp(Math.floor(Math.min(...ys)), 0, n - 1),
     maxY: clamp(Math.floor(Math.max(...ys)), 0, n - 1)
   };
+}
+
+function countTiles(range) {
+  return (range.maxX - range.minX + 1) * (range.maxY - range.minY + 1);
 }
 
 function lonToTileX(lon, z) {
