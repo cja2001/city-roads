@@ -9,7 +9,7 @@ Data © OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright
 -->`;
     },
     close() {
-      return getPrintableElements();
+      return (options.extraSVG || '') + getPrintableElements();
     }
   };
 

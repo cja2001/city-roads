@@ -49,6 +49,10 @@ export function getPrintableCanvas(scene) {
   printable.height = height;
   scene.render();
   ctx.drawImage(cityCanvas, 0, 0, cityCanvas.width, cityCanvas.height, 0, 0, width, height);
+  let streetNames = document.querySelector('#street-names');
+  if (streetNames && streetNames.style.display !== 'none') {
+    ctx.drawImage(streetNames, 0, 0, streetNames.width, streetNames.height, 0, 0, width, height);
+  }
 
   return Promise.all(collectPrintable().map(label => drawTextLabel(label, ctx))).then(() => {
     return printable;
