@@ -10,13 +10,18 @@ from qgis.core import (
 from .core.osm import STREET_FIELDS, geojson_to_wkt
 
 WGS84 = 'EPSG:4326'
-ATTRIBUTION = '© colaboradores de OpenStreetMap, ODbL 1.0'
+OSM_ATTRIBUTION = '© colaboradores de OpenStreetMap, ODbL 1.0'
+OVERTURE_ATTRIBUTION = 'Overture Maps Foundation; © colaboradores de OpenStreetMap, ODbL 1.0'
 
 
-def streets_layer(streets, title, color='#1a1a1a', labels=True):
+def streets_layer(streets, title, color='#1a1a1a', labels=True, attribution=OSM_ATTRIBUTION):
     layer = QgsVectorLayer('LineString?crs=%s' % WGS84, title, 'memory')
     provider = layer.dataProvider()
     fields = [QgsField('osm_id', QVariant.LongLong)] + [QgsField(name, QVariant.String) for name in STREET_FIELDS]
+    # Streets that combine OpenStreetMap and Overture say where each one came from.
+    with_source = any('source' in street for street in streets)
+    if with_source:
+        fields.append(QgsField('fuente', QVariant.String))
     provider.addAttributes(fields)
     layer.updateFields()
 
@@ -24,7 +29,10 @@ def streets_layer(streets, title, color='#1a1a1a', labels=True):
     for street in streets:
         feature = QgsFeature(layer.fields())
         feature.setGeometry(QgsGeometry.fromPolylineXY([QgsPointXY(lon, lat) for lon, lat in street['coords']]))
-        feature.setAttributes([street['osm_id']] + [street['tags'].get(name) for name in STREET_FIELDS])
+        values = [street['osm_id']] + [street['tags'].get(name) for name in STREET_FIELDS]
+        if with_source:
+            values.append(street.get('source'))
+        feature.setAttributes(values)
         features.append(feature)
     provider.addFeatures(features)
     layer.updateExtents()
@@ -33,7 +41,7 @@ def streets_layer(streets, title, color='#1a1a1a', labels=True):
     layer.renderer().setSymbol(symbol)
     if labels:
         set_street_labels(layer)
-    layer.setAttribution(ATTRIBUTION)
+    layer.setAttribution(attribution)
     return layer
 
 

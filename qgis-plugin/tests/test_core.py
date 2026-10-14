@@ -10,7 +10,7 @@ import xml.etree.ElementTree as ET
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, os.path.dirname(__file__))
 
-from city_roads.core import osm  # noqa: E402
+from city_roads.core import merge, osm, overture  # noqa: E402
 from city_roads.core.kml import streets_to_kml, to_kml_color  # noqa: E402
 import fixtures  # noqa: E402
 
@@ -124,6 +124,118 @@ class DownloadTest(unittest.TestCase):
         multi = osm.geojson_to_wkt({'type': 'MultiPolygon', 'coordinates': [[[[0, 0], [1, 0], [1, 1], [0, 0]]]]})
         self.assertEqual(multi, 'MULTIPOLYGON (((0 0, 1 0, 1 1, 0 0)))')
         self.assertIsNone(osm.geojson_to_wkt(None))
+
+
+def fake_overture_api(calls):
+    def http(url, data=None, timeout=60, is_cancelled=None):
+        calls.append(url)
+        parsed = urllib.parse.urlparse(url)
+        if parsed.query == 'index':
+            return fixtures.as_bytes(fixtures.OVERTURE_INDEX)
+        q = dict(urllib.parse.parse_qsl(parsed.query))
+        assert q['release'] == fixtures.OVERTURE_RELEASE, q
+        return fixtures.as_bytes({'segments': fixtures.OVERTURE_SEGMENTS[(int(q['file']), int(q['group']))]})
+    return http
+
+
+class OvertureTest(unittest.TestCase):
+    place = {'bbox': [fixtures.S, fixtures.W, fixtures.N, fixtures.E],
+             'boundary': fixtures.NOMINATIM[0]['geojson']}
+
+    def test_downloads_overlapping_groups_and_clips(self):
+        calls = []
+        statuses = []
+        streets = overture.download_streets(self.place, http=fake_overture_api(calls),
+                                            api='https://example.com/api/overture/', on_status=statuses.append)
+        self.assertEqual(calls[0], 'https://example.com/api/overture?index')
+        self.assertEqual(len(calls), 3)  # index + the two groups that overlap the town
+        self.assertIn('file=0&group=7&bbox=-89.2,13.69,-89.19,13.7', calls[1])
+        self.assertIn('Descargando calles de Overture (2/2)', statuses)
+        names = sorted(s['tags'].get('name', '') for s in streets)
+        self.assertEqual(names, ['', '', 'Avenida España', 'Calle Arce', 'Calle Arce', 'Pasaje Nuevo'])  # Camino Afuera clipped
+        avenue = next(s for s in streets if s['tags'].get('name') == 'Avenida España')
+        self.assertEqual(avenue['tags']['highway'], 'primary')
+        self.assertIsNone(avenue['osm_id'])
+        for (lon, lat), expected in zip(avenue['coords'], [(-89.195, 13.691), (-89.195, 13.695), (-89.195, 13.699)]):
+            self.assertAlmostEqual(lon, expected[0], places=6)
+            self.assertAlmostEqual(lat, expected[1], places=6)
+
+    def test_shared_points_become_one_node(self):
+        elements = overture.segments_to_elements(fixtures.OVERTURE_SEGMENTS[(0, 7)])
+        nodes = [e for e in elements if e['type'] == 'node']
+        ways = [e for e in elements if e['type'] == 'way']
+        self.assertEqual(len(ways), 6)
+        self.assertEqual(len(nodes), 11)  # (-89.195, 13.695) is shared by three segments
+        self.assertTrue(all(e['id'] < 0 for e in elements))
+        self.assertEqual(ways[0]['nodes'][1], ways[1]['nodes'][0])
+
+    def test_road_filter(self):
+        streets = overture.download_streets(self.place, road_filter='strict', clip=False,
+                                            http=fake_overture_api([]))
+        classes = sorted(s['tags']['highway'] for s in streets)
+        self.assertEqual(classes, ['primary', 'residential', 'residential', 'residential', 'service', 'track'])
+
+    def test_errors_are_readable(self):
+        def broken(url, **kwargs):
+            return b'<html>Not found</html>'
+        with self.assertRaises(overture.OvertureError) as ctx:
+            overture.download_streets(self.place, http=broken, api='https://example.com/api/overture')
+        self.assertIn('example.com', str(ctx.exception))
+
+        def failing(url, **kwargs):
+            return fixtures.as_bytes({'error': 'Overture bucket listing failed: 503'})
+        with self.assertRaises(overture.OvertureError) as ctx:
+            overture.download_streets(self.place, http=failing)
+        self.assertIn('503', str(ctx.exception))
+
+
+class MergeTest(unittest.TestCase):
+    place = OvertureTest.place
+
+    def test_merge_without_duplicates(self):
+        segments = fixtures.OVERTURE_SEGMENTS[(0, 7)] + fixtures.OVERTURE_SEGMENTS[(1, 3)]
+        osm_elements = osm.clip_to_boundary(json.loads(json.dumps(fixtures.OVERPASS['elements'])),
+                                            self.place['boundary'])
+        elements, added, named = merge.merge_sources(osm_elements, segments)
+        ways = [e for e in elements if e['type'] == 'way']
+        # OpenStreetMap ways 10, 11, 12, 14; Overture adds the footway and Camino
+        # Afuera (way 13 was clipped out of the OpenStreetMap download), not the
+        # 3 m copy of Calle Arce.
+        self.assertEqual(sorted(w['id'] for w in ways if w['id'] > 0), [10, 11, 12, 14])
+        self.assertEqual(sorted(w['tags']['highway'] for w in ways if w['id'] < 0), ['footway', 'track'])
+        self.assertEqual(added, 2)
+        self.assertEqual(named, 1)
+        self.assertEqual(next(w for w in ways if w['id'] == 14)['tags']['name'], 'Pasaje Nuevo')
+        # OpenStreetMap names win.
+        self.assertEqual(next(w for w in ways if w['id'] == 12)['tags']['name'], 'Avenida España & Co <1>')
+
+    def test_download_both(self):
+        overpass = fixtures.as_bytes(fixtures.OVERPASS)
+        api = fake_overture_api([])
+
+        def http(url, data=None, timeout=60, is_cancelled=None):
+            if data is not None:
+                return overpass
+            return api(url)
+
+        streets = merge.download_streets(self.place, http=http, servers=['https://overpass.example/api'])
+        sources = sorted((s['source'], s['tags'].get('name', ''), s['osm_id'] or 0) for s in streets)
+        self.assertEqual(sources, [
+            ('OpenStreetMap', 'Avenida España & Co <1>', 12),
+            ('OpenStreetMap', 'Calle Arce', 10),
+            ('OpenStreetMap', 'Calle Arce', 11),
+            ('OpenStreetMap', 'Pasaje Nuevo', 14),
+            ('Overture', '', 0),  # the footway; Camino Afuera is outside the town
+        ])
+
+    def test_parallel_road_is_kept(self):
+        # A road 30 m from an OpenStreetMap road is a different road.
+        osm_elements = [{'type': 'node', 'id': 1, 'lon': -89.199, 'lat': 13.695},
+                        {'type': 'node', 'id': 2, 'lon': -89.195, 'lat': 13.695},
+                        {'type': 'way', 'id': 10, 'nodes': [1, 2], 'tags': {'highway': 'residential'}}]
+        segment = fixtures.encode_segment('Paralela', 'residential', [(-89.199, 13.69527), (-89.195, 13.69527)])
+        elements, added, named = merge.merge_sources(osm_elements, [segment])
+        self.assertEqual(added, 1)
 
 
 class KmlTest(unittest.TestCase):

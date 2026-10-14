@@ -10,10 +10,16 @@ from qgis.PyQt.QtWidgets import (
 from qgis.core import Qgis, QgsApplication, QgsMapLayerProxyModel, QgsProject
 from qgis.gui import QgsColorButton, QgsFieldComboBox, QgsMapLayerComboBox
 
-from .core import osm
+from .core import merge, osm, overture
 from .core.kml import streets_to_kml
-from .layers import boundary_layer, layer_to_streets, streets_layer
+from .layers import OSM_ATTRIBUTION, OVERTURE_ATTRIBUTION, boundary_layer, layer_to_streets, streets_layer
 from .network import BackgroundTask
+
+SOURCE_CHOICES = [
+    ('osm', 'OpenStreetMap'),
+    ('overture', 'Overture Maps'),
+    ('both', 'OpenStreetMap + Overture'),
+]
 
 ROAD_CHOICES = [
     ('strict', 'Calles (sin caminos peatonales ni áreas)'),
@@ -31,7 +37,7 @@ class CityRoadsDialog(QDialog):
         self.iface = iface
         self.places = []
         self.task = None
-        self.setWindowTitle('City Roads: calles de OpenStreetMap')
+        self.setWindowTitle('City Roads: calles de OpenStreetMap y Overture')
         self.setMinimumWidth(460)
         self.build_ui()
 
@@ -57,6 +63,21 @@ class CityRoadsDialog(QDialog):
 
         download_box = QGroupBox('2. Descargar calles')
         form = QFormLayout(download_box)
+        settings = QSettings()
+        self.source_combo = QComboBox()
+        for key, label in SOURCE_CHOICES:
+            self.source_combo.addItem(label, key)
+        self.source_combo.setCurrentIndex(max(0, self.source_combo.findData(settings.value('city_roads/source', 'osm'))))
+        self.source_combo.setItemData(1, 'OpenStreetMap combinado con datos de Microsoft, TomTom y Meta', Qt.ToolTipRole)
+        self.source_combo.setItemData(2, 'Todas las calles de OpenStreetMap, más las de Overture que le faltan. '
+                                         'Las que están en ambas se guardan una sola vez.', Qt.ToolTipRole)
+        self.source_combo.currentIndexChanged.connect(self.on_source_changed)
+        form.addRow('Fuente', self.source_combo)
+        self.overture_api_label = QLabel('Servidor de Overture')
+        self.overture_api = QLineEdit(settings.value('city_roads/overture_api', overture.DEFAULT_API))
+        self.overture_api.setToolTip('Dirección de /api/overture en la web de City Roads. '
+                                     'Overture no tiene API propia; la web lee sus archivos por partes.')
+        form.addRow(self.overture_api_label, self.overture_api)
         self.road_combo = QComboBox()
         for key, label in ROAD_CHOICES:
             self.road_combo.addItem(label, key)
@@ -107,12 +128,22 @@ class CityRoadsDialog(QDialog):
         self.status.setWordWrap(True)
         self.status.setTextInteractionFlags(Qt.TextSelectableByMouse)
         layout.addWidget(self.status)
-        credit = QLabel('Datos © colaboradores de OpenStreetMap, ODbL 1.0')
+        credit = QLabel('Datos © colaboradores de OpenStreetMap, ODbL 1.0 · Overture Maps Foundation')
         credit.setStyleSheet('color: gray; font-size: 10px')
         layout.addWidget(credit)
 
         self.on_layer_changed(self.layer_combo.currentLayer())
+        self.on_source_changed()
         self.update_buttons()
+
+    def source(self):
+        return self.source_combo.currentData()
+
+    def on_source_changed(self, *args):
+        uses_overture = self.source() in ('overture', 'both')
+        self.overture_api_label.setVisible(uses_overture)
+        self.overture_api.setVisible(uses_overture)
+        QSettings().setValue('city_roads/source', self.source())
 
     # Search
 
@@ -147,12 +178,24 @@ class CityRoadsDialog(QDialog):
         place = self.places[index]
         road_filter = self.road_combo.currentData()
         clip = self.clip_check.isChecked()
+        source = self.source()
 
-        def work(http, cancelled, status):
-            return osm.download_streets(place, road_filter=road_filter, clip=clip, http=http,
-                                        is_cancelled=cancelled, on_status=status)
+        api = self.overture_api.text().strip() or overture.DEFAULT_API
+        if source != 'osm':
+            QSettings().setValue('city_roads/overture_api', api)
+        if source in ('overture', 'both'):
+            module = overture if source == 'overture' else merge
+
+            def work(http, cancelled, status):
+                return module.download_streets(place, road_filter=road_filter, clip=clip, http=http,
+                                               api=api, is_cancelled=cancelled, on_status=status)
+        else:
+            def work(http, cancelled, status):
+                return osm.download_streets(place, road_filter=road_filter, clip=clip, http=http,
+                                            is_cancelled=cancelled, on_status=status)
 
         self.download_place = place
+        self.download_source = source
         self.set_status('Descargando calles de %s…' % short_name(place))
         self.run_task('Descargando calles', work, self.on_download_done)
 
@@ -164,8 +207,10 @@ class CityRoadsDialog(QDialog):
             self.set_status('Descarga cancelada.')
             return
         place = self.download_place
+        source = self.download_source
+        source_name = {'overture': 'Overture Maps', 'both': 'OpenStreetMap ni Overture'}.get(source, 'OpenStreetMap')
         if not streets:
-            self.set_status('OpenStreetMap no tiene calles para %s.' % short_name(place), error=True)
+            self.set_status('No se encontraron calles de %s para %s.' % (source_name, short_name(place)), error=True)
             return
 
         project = QgsProject.instance()
@@ -174,14 +219,19 @@ class CityRoadsDialog(QDialog):
             outline = boundary_layer(place, 'Límite: %s' % name)
             if outline:
                 project.addMapLayer(outline)
-        layer = streets_layer(streets, 'Calles: %s' % name, labels=self.labels_check.isChecked())
+        title = {'overture': 'Calles (Overture): %s', 'both': 'Calles (OSM + Overture): %s'}.get(source, 'Calles: %s') % name
+        layer = streets_layer(streets, title, labels=self.labels_check.isChecked(),
+                              attribution=OSM_ATTRIBUTION if source == 'osm' else OVERTURE_ATTRIBUTION)
         project.addMapLayer(layer)
         self.zoom_to(layer)
         self.layer_combo.setLayer(layer)
 
         named = len({s['tags'].get('name') for s in streets if s['tags'].get('name')})
-        self.set_status('%d tramos descargados (%d calles con nombre). Ya puedes exportarlos a KML.'
-                        % (len(streets), named))
+        extra = ''
+        if source == 'both':
+            extra = ' %d tramos vienen de Overture.' % sum(1 for s in streets if s.get('source') == 'Overture')
+        self.set_status('%d tramos descargados (%d calles con nombre).%s Ya puedes exportarlos a KML.'
+                        % (len(streets), named, extra))
         self.iface.messageBar().pushMessage('City Roads', 'Calles de %s añadidas' % name, Qgis.Success, 5)
 
     def zoom_to(self, layer):
@@ -251,6 +301,7 @@ class CityRoadsDialog(QDialog):
     def update_buttons(self):
         busy = self.task is not None
         self.search_button.setEnabled(not busy)
+        self.source_combo.setEnabled(not busy)
         self.place_combo.setEnabled(not busy and bool(self.places))
         self.download_button.setEnabled(not busy and self.place_combo.currentIndex() >= 0 and bool(self.places))
         self.export_button.setEnabled(self.layer_combo.currentLayer() is not None)
