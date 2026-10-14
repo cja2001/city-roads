@@ -59,7 +59,7 @@ export default class Query {
       .then(resolvedQueryString => postData(resolvedQueryString, this.progress))
       .then(osmResponse => {
         if (!osmResponse || !osmResponse.elements) {
-          let err = new Error('OpenStreetMap servers returned an invalid response. Please try again.');
+          let err = new Error('Los servidores de OpenStreetMap dieron una respuesta no válida. Inténtalo de nuevo.');
           err.invalidResponse = true;
           throw err;
         }
@@ -108,7 +108,7 @@ function runAllNominmantimQueries(parts) {
       .then(pickFirstBoundary)
       .then(first => {
         if (!first) {
-          throw new Error('No areas found for request ' + part.name);
+          throw new Error('No se encontraron zonas para ' + part.name);
         }
         Object.assign(part, first);
       })

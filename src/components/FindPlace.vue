@@ -2,74 +2,74 @@
 <div class='find-place' :class='{centered: boxInTheMiddle }'>
   <div v-if='boxInTheMiddle'>
     <h3 class='site-header'>city roads</h3>
-    <p class='description'>This website renders every single road within a city</p>
+    <p class='description'>Este sitio dibuja todas las calles de una ciudad</p>
   </div>
   <form v-on:submit.prevent="onSubmit" class='search-box'>
-      <input class='query-input' v-model='enteredInput' type='text' placeholder='Enter a city name to start' ref='input'>
+      <input class='query-input' v-model='enteredInput' type='text' placeholder='Escribe el nombre de una ciudad' ref='input'>
       <a type='submit' class='search-submit' href='#' @click.prevent='onSubmit' v-if='enteredInput && !hideInput'>{{mainActionText}}</a>
   </form>
-  <div class='source-picker' role='radiogroup' aria-label='Road data source'>
-    <span class='source-label'>Roads from</span>
+  <div class='source-picker' role='radiogroup' aria-label='Fuente de las calles'>
+    <span class='source-label'>Calles de</span>
     <a href='#' role='radio' :aria-checked='source === "osm"' :class='{active: source === "osm"}' @click.prevent='setSource("osm")'>OpenStreetMap</a>
-    <a href='#' role='radio' :aria-checked='source === "overture"' :class='{active: source === "overture"}' @click.prevent='setSource("overture")' title='Overture Maps: OpenStreetMap combined with data from Microsoft, TomTom and Meta'>Overture</a>
-    <a href='#' role='radio' :aria-checked='source === "both"' :class='{active: source === "both"}' @click.prevent='setSource("both")' title='All OpenStreetMap roads, plus the Overture roads OpenStreetMap is missing. Roads in both are kept once.'>Both</a>
+    <a href='#' role='radio' :aria-checked='source === "overture"' :class='{active: source === "overture"}' @click.prevent='setSource("overture")' title='Overture Maps: OpenStreetMap combinado con datos de Microsoft, TomTom y Meta'>Overture</a>
+    <a href='#' role='radio' :aria-checked='source === "both"' :class='{active: source === "both"}' @click.prevent='setSource("both")' title='Todas las calles de OpenStreetMap, más las de Overture que le faltan. Las que están en ambas se guardan una sola vez.'>Ambas</a>
   </div>
   <div v-if='showWarning' class='prompt message note shadow'>
-    Note: Large cities may require 200MB+ of data transfer and may need a powerful device to render.
+    Nota: las ciudades grandes pueden requerir más de 200 MB de datos y un equipo potente para dibujarlas.
   </div>
   <div class='results' v-if='!loading'>
     <div v-if='suggestionsLoaded && suggestions.length' class='suggestions shadow'>
       <div class='prompt message'>
-        <div>Select boundaries below to download all roads within</div>
-        <div class='note'>large cities may require 200MB+ of data transfer and a powerful device</div>
+        <div>Elige un límite para descargar todas sus calles</div>
+        <div class='note'>las ciudades grandes pueden requerir más de 200 MB de datos y un equipo potente</div>
       </div>
       <ul>
         <li v-for='(suggestion, index) in suggestions' :key="index">
           <a @click.prevent='pickSuggestion(suggestion)' class='suggestion'
           href='#'>
           <span>
-          {{suggestion.name}} <small>({{suggestion.type}})</small>
+          {{suggestion.name}} <small>({{placeType(suggestion.type)}})</small>
           </span>
           </a>
         </li>
       </ul>
     </div>
     <div v-if='suggestionsLoaded && !suggestions.length && !loading && !error' class='no-results message shadow'>
-      Didn't find matching cities. Try a different query?
+      No se encontraron ciudades. ¿Pruebas con otro nombre?
     </div>
     <div v-if='noRoads' class='no-results message shadow'>
-      Didn't find any roads. Try a different query?
+      No se encontraron calles. ¿Pruebas con otro nombre?
     </div>
   </div>
   <div v-if='error' class='error message shadow'>
     <div v-if='isServerError(error)'>
-      <div>{{sourceName}} servers are busy or temporarily unavailable.</div>
-      <div class='error-note'>We tried {{error.serversAttempted || 'multiple'}} servers but none responded in time. This usually resolves within a few minutes.</div>
+      <div>Los servidores de {{sourceName}} están ocupados o no disponibles por ahora.</div>
+      <div class='error-note'>Probamos {{error.serversAttempted || 'varios'}} servidores y ninguno respondió a tiempo. Normalmente se resuelve en unos minutos.</div>
       <div class='error-actions'>
-        <a href='#' @click.prevent="retry" class='retry-btn'>Retry</a>
+        <a href='#' @click.prevent="retry" class='retry-btn'>Reintentar</a>
       </div>
     </div>
     <div v-else>
-      <div>Sorry, something went wrong while loading data.</div>
+      <div>Algo salió mal al cargar los datos.</div>
       <div class='error-note'>{{error.message || error.toString()}}</div>
       <div class='error-actions'>
-        <a href='#' @click.prevent="retry" class='retry-btn'>Retry</a>
+        <a href='#' @click.prevent="retry" class='retry-btn'>Reintentar</a>
       </div>
       <div class='error-links'>
-        <a href='https://twitter.com/anvaka/status/1218971717734789120' title='see what it supposed to do' target="_blank">see how it should have worked</a>
-        <a :href='getBugReportURL(error)' :title='"report error: " + error' target='_blank'>report this bug</a>
+        <a href='https://twitter.com/anvaka/status/1218971717734789120' title='mira cómo debería funcionar' target="_blank">cómo debería funcionar</a>
+        <a :href='getBugReportURL(error)' :title='"reportar error: " + error' target='_blank'>reportar este error</a>
       </div>
     </div>
   </div>
   <div v-if='loading' class='loading message shadow'>
     <loading-icon></loading-icon>
     <span>{{loading}}</span>
-    <a href="#" @click.prevent='cancelRequest' class='cancel-request'>cancel</a>
+    <a href="#" @click.prevent='cancelRequest' class='cancel-request'>cancelar</a>
     <div class='load-padding' v-if='stillLoading > 0'>
-      Still loading...
+      Sigue cargando...
     </div>
     <div class='load-padding' v-if='stillLoading > 1'>
-      Sorry it takes so long!
+      ¡Perdón por la espera!
     </div>
   </div>
 </div>
@@ -92,7 +92,24 @@ import clipToBoundary from '../lib/clipToBoundary.js';
 import Pbf from 'pbf';
 import {place} from '../proto/place.js';
 
-const FIND_TEXT = 'Find City Bounds';
+const FIND_TEXT = 'Buscar ciudad';
+
+// Nominatim place types, as shown next to each search result.
+const PLACE_TYPES = {
+  administrative: 'administrativo',
+  city: 'ciudad',
+  town: 'pueblo',
+  village: 'aldea',
+  hamlet: 'caserío',
+  suburb: 'barrio',
+  neighbourhood: 'colonia',
+  county: 'condado',
+  state: 'estado',
+  region: 'región',
+  country: 'país',
+  municipality: 'municipio',
+  island: 'isla',
+};
 
 export default {
   name: 'FindPlace',
@@ -115,7 +132,7 @@ export default {
       noRoads: false,
       clicked: false,
       showWarning: hasValidArea, 
-      mainActionText: hasValidArea ? 'Download Area' : FIND_TEXT,
+      mainActionText: hasValidArea ? 'Descargar zona' : FIND_TEXT,
       source: ['overture', 'both'].includes(appState.get('source')) ? appState.get('source') : 'osm',
       suggestions: []
     }
@@ -123,7 +140,7 @@ export default {
   computed: {
     sourceName() {
       return this.source === 'overture' ? 'Overture Maps' :
-        this.source === 'both' ? 'OpenStreetMap or Overture Maps' : 'OpenStreetMap';
+        this.source === 'both' ? 'OpenStreetMap u Overture Maps' : 'OpenStreetMap';
     }
   },
   watch: {
@@ -167,7 +184,7 @@ export default {
         return;
       }
 
-      this.loading = 'Searching cities that match your query...'
+      this.loading = 'Buscando ciudades...'
       findBoundaryByName(this.enteredInput)
         .then(suggestions => {
           this.loading = null;
@@ -187,6 +204,10 @@ export default {
         });
     },
 
+    placeType(type) {
+      return PLACE_TYPES[type] || type;
+    },
+
     isServerError(error) {
       if (!error) return false;
       // These are transient server issues, not bugs in our code
@@ -194,7 +215,8 @@ export default {
              error.invalidResponse ||
              error.statusError ||
              error.timedOut ||
-             (error.message && error.message.includes('Failed to download'));
+             (error.message && error.message.includes('No se pudo descargar')) ||
+             (typeof error === 'string' && error.startsWith('No se pudo descargar'));
     },
 
     getBugReportURL(error) {
@@ -212,14 +234,14 @@ export default {
       this.stillLoading = 0;
       clearInterval(this.notifyStillLoading);
       if (status.loaded < 0) {
-        this.loading = 'Trying a different server'
+        this.loading = 'Probando otro servidor'
         this.restartLoadingMonitor();
         return;
       }
       if (status.percent !== undefined) {
-        this.loading = 'Loaded ' + Math.round(100 * status.percent) + '% (' + formatNumber(status.loaded) + ' bytes)...';
+        this.loading = 'Cargado ' + Math.round(100 * status.percent) + '% (' + formatNumber(status.loaded) + ' bytes)...';
       } else {
-        this.loading = 'Loaded ' + formatNumber(status.loaded) + ' bytes...';
+        this.loading = 'Cargados ' + formatNumber(status.loaded) + ' bytes...';
       }
     },
 
@@ -260,7 +282,7 @@ export default {
     },
 
     checkCache(suggestion) {
-      this.loading = 'Checking cache...'
+      this.loading = 'Revisando la caché...'
       let areaId = suggestion.areaId;
 
       return request(config.areaServer + '/' + areaId + '.pbf', {
@@ -278,11 +300,11 @@ export default {
     },
 
     useOSM(suggestion) {
-      this.loadRoads(suggestion, 'Connecting to OpenStreetMap...', loadOSMGrid);
+      this.loadRoads(suggestion, 'Conectando con OpenStreetMap...', loadOSMGrid);
     },
 
     useBoth(suggestion) {
-      this.loadRoads(suggestion, 'Connecting to OpenStreetMap and Overture Maps...', (place, progress) =>
+      this.loadRoads(suggestion, 'Conectando con OpenStreetMap y Overture Maps...', (place, progress) =>
         Promise.all([loadOSMGrid(place, progress), loadOvertureSegments(place, progress)])
           .then(([osmGrid, segments]) => {
             let merged = mergeSources(osmGrid.elements, segments);
@@ -295,7 +317,7 @@ export default {
     },
 
     useOverture(suggestion) {
-      this.loadRoads(suggestion, 'Connecting to Overture Maps...', loadOvertureGrid);
+      this.loadRoads(suggestion, 'Conectando con Overture Maps...', loadOvertureGrid);
     },
 
     loadRoads(suggestion, message, load) {

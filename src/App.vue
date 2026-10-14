@@ -3,24 +3,24 @@
   <div id="app">
     <div v-if='placeFound'>
       <div class='controls'>
-        <a href="#" class='print-button' @click.prevent='toggleSettings'>Customize...</a>
-        <a href="#" class='try-another' @click.prevent='startOver'>Try another city</a>
+        <a href="#" class='print-button' @click.prevent='toggleSettings'>Personalizar...</a>
+        <a href="#" class='try-another' @click.prevent='startOver'>Probar otra ciudad</a>
       </div>
       <div class='layer-toggles'>
-        <a href='#' class='layer-toggle streets-toggle' :class='{active: showStreets}' @click.prevent='toggleStreets'>Streets</a>
+        <a href='#' class='layer-toggle streets-toggle' :class='{active: showStreets}' @click.prevent='toggleStreets'>Calles</a>
         <a href='#' class='layer-toggle parcels-toggle' :class='{active: showParcels, loading: parcelsStatus === "loading"}' @click.prevent='toggleParcels'>
-          <span v-if='parcelsStatus === "loading"'>Loading parcels...</span>
-          <span v-else>Parcels</span>
+          <span v-if='parcelsStatus === "loading"'>Cargando parcelas...</span>
+          <span v-else>Parcelas</span>
         </a>
       </div>
       <div v-if='showParcels && (parcelsStatus === "error" || parcelsStatus === "empty")' class='layer-notice'>
-        <span v-if='parcelsStatus === "error"'>Could not load parcels. <a href='#' @click.prevent='retryParcels'>Try again</a></span>
-        <span v-else>No parcels or buildings are mapped in this area.</span>
+        <span v-if='parcelsStatus === "error"'>No se pudieron cargar las parcelas. <a href='#' @click.prevent='retryParcels'>Reintentar</a></span>
+        <span v-else>No hay parcelas ni edificios mapeados en esta zona.</span>
       </div>
       <div v-if='showSettings' class='print-window'>
-        <h3>Display</h3>
+        <h3>Vista</h3>
         <div class='row'>
-          <div class='col'>Colors</div>
+          <div class='col'>Colores</div>
           <div class='col colors c-2'>
             <div v-for='layer in layers' :key='layer.name' class='color-container'>
               <color-picker v-model='layer.color' @change='layer.changeColor'></color-picker>
@@ -29,7 +29,7 @@
           </div>
         </div>
         <div class='row'>
-          <label class='col base-map-label' for='base-map-select'>Base map</label>
+          <label class='col base-map-label' for='base-map-select'>Mapa base</label>
           <span class='col c-2'>
             <select id='base-map-select' class='select' v-model='baseMap' @change='changeBaseMap'>
               <option v-for='(style, key) in baseMaps' :key='key' :value='key'>{{style.name}}</option>
@@ -38,69 +38,57 @@
         </div>
         <div class='row'>
           <label class='col street-names-toggle'>
-            <input type='checkbox' v-model='showStreetNames' @change='toggleStreetNames'> Street names
+            <input type='checkbox' v-model='showStreetNames' @change='toggleStreetNames'> Nombres de calles
           </label>
           <span class='col c-2 street-names-status'>
-            <span v-if='streetNamesStatus === "loading"'>Loading street names from OpenStreetMap...</span>
-            <span v-else-if='streetNamesStatus === "error"'>Could not load street names. <a href='#' @click.prevent='loadStreetNames'>Try again</a></span>
-            <span v-else-if='streetNamesStatus === "empty"'>No named streets found in this area.</span>
-            <span v-else>Zoom in to see more names.</span>
+            <span v-if='streetNamesStatus === "loading"'>Cargando nombres de calles de OpenStreetMap...</span>
+            <span v-else-if='streetNamesStatus === "error"'>No se pudieron cargar los nombres de calles. <a href='#' @click.prevent='loadStreetNames'>Reintentar</a></span>
+            <span v-else-if='streetNamesStatus === "empty"'>No se encontraron calles con nombre en esta zona.</span>
+            <span v-else>Acerca el mapa para ver más nombres.</span>
           </span>
         </div>
 
-        <h3>Export</h3>
+        <h3>Exportar</h3>
         <div class='row'>
-          <a href='#' @click.prevent='zazzleMugPrint()' class='col'>Onto a mug</a> 
+          <a href='#' @click.prevent='zazzleMugPrint()' class='col'>En una taza</a> 
           <span class='col c-2'>
-            Print what you see onto a mug. <br/>Get a unique gift of your favorite city.
+            Imprime lo que ves en una taza. <br/>Un regalo único de tu ciudad favorita.
           </span>
         </div>
         <div class='preview-actions message' v-if='zazzleLink || generatingPreview'>
             <div v-if='zazzleLink' class='padded popup-help'>
-              If your browser has blocked the new window, <br/>please <a :href='zazzleLink' target='_blank'>click here</a>
-              to open it.
+              Si tu navegador bloqueó la ventana nueva, <br/><a :href='zazzleLink' target='_blank'>haz clic aquí</a>
+              para abrirla.
             </div>
             <div v-if='generatingPreview' class='loading-container'>
               <loading-icon></loading-icon>
-              Generating preview url...
+              Generando la vista previa...
             </div>
         </div>
         <div class='row'>
-          <a href='#'  @click.prevent='toPNGFile' class='col'>As an image (.png)</a> 
+          <a href='#'  @click.prevent='toPNGFile' class='col'>Como imagen (.png)</a> 
           <span class='col c-2'>
-            Save the current screen as a raster image.
+            Guarda la pantalla actual como imagen.
           </span>
         </div>
         
         <div class='row'>
-          <a href='#'  @click.prevent='toSVGFile' class='col'>As a vector (.svg)</a> 
+          <a href='#'  @click.prevent='toSVGFile' class='col'>Como vector (.svg)</a> 
           <span class='col c-2'>
-            Save the current screen as a vector image.
+            Guarda la pantalla actual como imagen vectorial.
           </span>
         </div>
         <div class='row'>
-          <a href='#'  @click.prevent='toKMLFile' class='col'>As a map file (.kml)</a> 
+          <a href='#'  @click.prevent='toKMLFile' class='col'>Como mapa (.kml)</a> 
           <span class='col c-2'>
-            Save the visible streets (with names) and parcels. Opens in Google Earth and Google My Maps.
+            Guarda las calles visibles (con nombres) y las parcelas. Se abre en Google Earth y Google My Maps.
           </span>
         </div>
         <div v-if='false' class='row'>
-          <a href='#' @click.prevent='toProtobuf' class='col'>To a .PBF file</a> 
+          <a href='#' @click.prevent='toProtobuf' class='col'>Como archivo .PBF</a> 
           <span class='col c-2'>
-            Save the current data as a protobuf message. For developer use only.
+            Guarda los datos actuales como mensaje protobuf. Solo para desarrolladores.
           </span>
-        </div>
-
-        <h3>About</h3>
-        <div>
-          <p>This website was created by <a href='https://twitter.com/anvaka' target='_blank'>@anvaka</a>.
-          It downloads roads from OpenStreetMap and renders them with WebGL.
-          </p>
-          <p>
-           You can find the entire <a href='https://github.com/anvaka/city-roads'>source code here</a>. 
-           If you love this website you can also <a href='https://www.paypal.com/paypalme2/anvakos/3'>buy me a coffee</a> or 
-           <a href='https://www.patreon.com/anvaka'>support me on Patreon</a>, but you don't have to.
-          </p>
         </div>
       </div>
     </div>
@@ -108,10 +96,10 @@
 
   <editable-label v-if='placeFound' v-model='name' class='city-name' :printable='true' :style='{color: labelColorRGBA}' :overlay-manager='overlayManager'></editable-label>
   <div v-if='placeFound && showStreetNames && (streetNamesStatus === "loading" || streetNamesStatus === "error")' class='street-names-notice'>
-    <span v-if='streetNamesStatus === "loading"'>Loading street names...</span>
-    <span v-else>Could not load street names. <a href='#' @click.prevent='loadStreetNames'>Try again</a></span>
+    <span v-if='streetNamesStatus === "loading"'>Cargando nombres de calles...</span>
+    <span v-else>No se pudieron cargar los nombres de calles. <a href='#' @click.prevent='loadStreetNames'>Reintentar</a></span>
   </div>
-  <div v-if='placeFound' class='license printable can-drag' :style='{color: labelColorRGBA}'>data <a href='https://www.openstreetmap.org/about/' target="_blank" :style='{color: labelColorRGBA}'>© OpenStreetMap</a><span v-if='roadSource !== "osm"'> · <a href='https://overturemaps.org/' target="_blank" :style='{color: labelColorRGBA}'>Overture Maps</a></span><span v-if='baseMapAttribution'> · {{baseMapAttribution}}</span></div>
+  <div v-if='placeFound' class='license printable can-drag' :style='{color: labelColorRGBA}'>datos <a href='https://www.openstreetmap.org/about/' target="_blank" :style='{color: labelColorRGBA}'>© OpenStreetMap</a><span v-if='roadSource !== "osm"'> · <a href='https://overturemaps.org/' target="_blank" :style='{color: labelColorRGBA}'>Overture Maps</a></span><span v-if='baseMapAttribution'> · {{baseMapAttribution}}</span></div>
 </template>
 
 <script>
@@ -140,6 +128,9 @@ class ColorLayer {
     this.color = color;
   }
 }
+
+// Names shown in the color picker for the layers of the scene.
+const LAYER_NAMES = {lines: 'calles', parcels: 'parcelas'};
 
 export default {
   name: 'App',
@@ -359,10 +350,10 @@ export default {
       let root = renderer.getRoot();
       root.children.forEach(layer => {
         if (!layer.color) return;
-        let name = layer.id;
+        let name = LAYER_NAMES[layer.id] || layer.id;
         if (!name) {
           lastLayer += 1;
-          name = 'lines ' + lastLayer;
+          name = 'líneas ' + lastLayer;
         }
         let layerColor = tinycolor.fromRatio(layer.color);
         newLayers.push(new ColorLayer(name, layerColor, newColor => {
@@ -374,9 +365,9 @@ export default {
       });
 
       newLayers.push(
-        new ColorLayer('background', this.backgroundColor, this.setBackgroundColor),
-        new ColorLayer('labels', this.labelColor, newColor => this.labelColor = newColor),
-        new ColorLayer('street names', this.streetNamesColor, newColor => {
+        new ColorLayer('fondo', this.backgroundColor, this.setBackgroundColor),
+        new ColorLayer('título', this.labelColor, newColor => this.labelColor = newColor),
+        new ColorLayer('nombres de calles', this.streetNamesColor, newColor => {
           this.streetNamesColor = newColor;
           this.zazzleLink = null;
           if (this.streetNames) this.streetNames.color = newColor;

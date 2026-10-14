@@ -37,7 +37,7 @@ export default function loadOvertureGrid(place, progress) {
 export function loadOvertureSegments(place, progress) {
   progress = progress || new Progress();
   if (!place.bbox) {
-    return Promise.reject(new Error('Overture needs the bounding box of the place. Please search for it again.'));
+    return Promise.reject(new Error('Overture necesita el rectángulo del lugar. Búscalo de nuevo.'));
   }
   let [south, west, north, east] = place.bbox;
   // Rounded outwards so the same city always asks for the same urls, which

@@ -3,7 +3,7 @@ import request from './request.js';
 const NOMINATIM = 'https://nominatim.openstreetmap.org';
 // Ask for a simplified outline of each place, so roads can be clipped to it
 // without relying on the area index of Overpass servers.
-const POLYGON_PARAMS = 'format=json&polygon_geojson=1&polygon_threshold=0.0003';
+const POLYGON_PARAMS = 'format=json&polygon_geojson=1&polygon_threshold=0.0003&accept-language=es';
 
 let cachedResults = new Map();
 
