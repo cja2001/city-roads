@@ -50,22 +50,6 @@
 
         <h3>Exportar</h3>
         <div class='row'>
-          <a href='#' @click.prevent='zazzleMugPrint()' class='col'>En una taza</a> 
-          <span class='col c-2'>
-            Imprime lo que ves en una taza. <br/>Un regalo único de tu ciudad favorita.
-          </span>
-        </div>
-        <div class='preview-actions message' v-if='zazzleLink || generatingPreview'>
-            <div v-if='zazzleLink' class='padded popup-help'>
-              Si tu navegador bloqueó la ventana nueva, <br/><a :href='zazzleLink' target='_blank'>haz clic aquí</a>
-              para abrirla.
-            </div>
-            <div v-if='generatingPreview' class='loading-container'>
-              <loading-icon></loading-icon>
-              Generando la vista previa...
-            </div>
-        </div>
-        <div class='row'>
           <a href='#'  @click.prevent='toPNGFile' class='col'>Como imagen (.png)</a> 
           <span class='col c-2'>
             Guarda la pantalla actual como imagen.
@@ -112,9 +96,8 @@ import GridLayer from './lib/GridLayer.js';
 import StreetNamesLayer from './lib/StreetNamesLayer.js';
 import ParcelsLayer from './lib/ParcelsLayer.js';
 import BaseMapLayer, {BASE_MAPS} from './lib/BaseMapLayer.js';
-import generateZazzleLink from './lib/getZazzleLink.js';
 import appState from './lib/appState.js';
-import {getPrintableCanvas, getCanvas, toKML} from './lib/saveFile.js';
+import {getCanvas, toKML} from './lib/saveFile.js';
 import config from './config.js';
 import './lib/canvas2BlobPolyfill.js';
 import bus from './lib/bus.js';
@@ -144,8 +127,6 @@ export default {
     return {
       placeFound: false,
       name: '',
-      zazzleLink: null,
-      generatingPreview: false,
       showSettings: false,
       settingsOpen: false,
       labelColor: config.getLabelColor().toRgb(),
@@ -172,7 +153,6 @@ export default {
     }
   },
   created() {
-    bus.on('scene-transform', this.handleSceneTransform);
     bus.on('background-color', this.syncBackground);
     bus.on('line-color', this.syncLineColor);
     this.overlayManager = createOverlayManager();
@@ -181,7 +161,6 @@ export default {
     debugger;
     this.overlayManager.dispose();
     this.dispose();
-    bus.off('scene-transform', this.handleSceneTransform);
     bus.off('background-color', this.syncBackground);
     bus.off('line-color', this.syncLineColor);
   },
@@ -208,9 +187,6 @@ export default {
     },
     toggleSettings() {
       this.showSettings = !this.showSettings;
-    },
-    handleSceneTransform() {
-      this.zazzleLink = null;
     },
     onGridLoaded(grid) {
       if (grid.isArea) {
@@ -261,21 +237,18 @@ export default {
     },
 
     changeBaseMap() {
-      this.zazzleLink = null;
       if (this.baseMap === 'map') appState.unset('base');
       else appState.set('base', this.baseMap);
       if (this.baseMapLayer) this.baseMapLayer.setStyle(this.baseMap);
     },
 
     toggleStreetNames() {
-      this.zazzleLink = null;
       if (!this.streetNames) return;
       if (this.showStreetNames && this.showStreets) this.streetNames.show();
       else this.streetNames.hide();
     },
 
     toggleStreets() {
-      this.zazzleLink = null;
       this.showStreets = !this.showStreets;
       if (this.roadsLayer) {
         if (this.showStreets) this.roadsLayer.show();
@@ -286,7 +259,6 @@ export default {
     },
 
     toggleParcels() {
-      this.zazzleLink = null;
       if (!this.parcels) return;
       this.showParcels = !this.showParcels;
       if (this.showParcels) this.parcels.show();
@@ -306,7 +278,6 @@ export default {
 
       this.dispose();
       this.placeFound = false;
-      this.zazzleLink = null;
       this.showSettings = false;
       this.backgroundColor = config.getBackgroundColor().toRgb();
       this.labelColor = config.getLabelColor().toRgb();
@@ -357,7 +328,6 @@ export default {
         }
         let layerColor = tinycolor.fromRatio(layer.color);
         newLayers.push(new ColorLayer(name, layerColor, newColor => {
-          this.zazzleLink = null;
           layer.color = toRatioColor(newColor);
           renderer.renderFrame();
           this.scene.fire('color-change', layer);
@@ -369,7 +339,6 @@ export default {
         new ColorLayer('título', this.labelColor, newColor => this.labelColor = newColor),
         new ColorLayer('nombres de calles', this.streetNamesColor, newColor => {
           this.streetNamesColor = newColor;
-          this.zazzleLink = null;
           if (this.streetNames) this.streetNames.color = newColor;
         })
       );
@@ -379,7 +348,6 @@ export default {
       function toRatioColor(c) {
         return {r: c.r/0xff, g: c.g/0xff, b: c.b/0xff, a: c.a}
       }
-      this.zazzleLink = null;
     },
 
     syncLineColor() {
@@ -393,48 +361,16 @@ export default {
     // TODO: I need two background methods?
     updateBackground() {
       this.setBackgroundColor(this.backgroundColor)
-      this.zazzleLink = null;
     },
     setBackgroundColor(c) {
       this.scene.background = c;
       document.body.style.backgroundColor = toRGBA(c);
-      this.zazzleLink = null;
-    },
-
-    zazzleMugPrint() {
-      if (this.zazzleLink) {
-        window.open(this.zazzleLink, '_blank');
-        recordOpenClick(this.zazzleLink);
-        return;
-      }
-
-      this.generatingPreview = true;
-      getPrintableCanvas(this.scene).then(printableCanvas => {
-        generateZazzleLink(printableCanvas).then(link => {
-          this.zazzleLink = link;
-          window.open(link, '_blank');
-          recordOpenClick(link);
-          this.generatingPreview = false;
-        }).catch(e => {
-          this.error = e;
-          this.generatingPreview = false;
-        });
-      });
     }
   }
 }
 
 function toRGBA(c) {
     return `rgba(${c.r}, ${c.g}, ${c.b}, ${c.a})`;
-}
-
-function recordOpenClick(link) {
-  if (typeof gtag === 'undefined') return;
-
-  gtag('event', 'click', {
-    'event_category': 'Outbound Link',
-    'event_label': link
-  });
 }
 </script>
 
