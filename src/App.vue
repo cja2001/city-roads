@@ -6,6 +6,17 @@
         <a href="#" class='print-button' @click.prevent='toggleSettings'>Customize...</a>
         <a href="#" class='try-another' @click.prevent='startOver'>Try another city</a>
       </div>
+      <div class='layer-toggles'>
+        <a href='#' class='layer-toggle streets-toggle' :class='{active: showStreets}' @click.prevent='toggleStreets'>Streets</a>
+        <a href='#' class='layer-toggle parcels-toggle' :class='{active: showParcels, loading: parcelsStatus === "loading"}' @click.prevent='toggleParcels'>
+          <span v-if='parcelsStatus === "loading"'>Loading parcels...</span>
+          <span v-else>Parcels</span>
+        </a>
+      </div>
+      <div v-if='showParcels && (parcelsStatus === "error" || parcelsStatus === "empty")' class='layer-notice'>
+        <span v-if='parcelsStatus === "error"'>Could not load parcels. <a href='#' @click.prevent='retryParcels'>Try again</a></span>
+        <span v-else>No parcels or buildings are mapped in this area.</span>
+      </div>
       <div v-if='showSettings' class='print-window'>
         <h3>Display</h3>
         <div class='row'>
@@ -70,7 +81,7 @@
         <div class='row'>
           <a href='#'  @click.prevent='toKMLFile' class='col'>As a map file (.kml)</a> 
           <span class='col c-2'>
-            Save all roads with their names. Opens in Google Earth and Google My Maps.
+            Save the visible streets (with names) and parcels. Opens in Google Earth and Google My Maps.
           </span>
         </div>
         <div v-if='false' class='row'>
@@ -111,6 +122,7 @@ import ColorPicker from './components/ColorPicker.vue';
 import createScene from './lib/createScene.js';
 import GridLayer from './lib/GridLayer.js';
 import StreetNamesLayer from './lib/StreetNamesLayer.js';
+import ParcelsLayer from './lib/ParcelsLayer.js';
 import BaseMapLayer, {BASE_MAPS} from './lib/BaseMapLayer.js';
 import generateZazzleLink from './lib/getZazzleLink.js';
 import appState from './lib/appState.js';
@@ -152,6 +164,9 @@ export default {
       baseMaps: BASE_MAPS,
       baseMap: BASE_MAPS[appState.get('base')] ? appState.get('base') : 'map',
       streetNamesStatus: 'idle',
+      showStreets: true,
+      showParcels: false,
+      parcelsStatus: 'idle',
       layers: []
     }
   },
@@ -181,6 +196,11 @@ export default {
   methods: {
     dispose() {
       this.grid = null;
+      this.roadsLayer = null;
+      if (this.parcels) {
+        this.parcels.dispose();
+        this.parcels = null;
+      }
       if (this.baseMapLayer) {
         this.baseMapLayer.dispose();
         this.baseMapLayer = null;
@@ -226,6 +246,11 @@ export default {
       gridLayer.setGrid(grid);
       this.scene.add(gridLayer)
       this.grid = grid;
+      this.roadsLayer = gridLayer;
+      this.showStreets = true;
+      this.showParcels = false;
+      this.parcelsStatus = 'idle';
+      this.parcels = new ParcelsLayer(this.scene, grid, gridLayer, status => this.parcelsStatus = status);
 
       this.baseMapLayer = new BaseMapLayer(this.scene, grid);
       this.baseMapLayer.setStyle(this.baseMap);
@@ -252,8 +277,32 @@ export default {
     toggleStreetNames() {
       this.zazzleLink = null;
       if (!this.streetNames) return;
-      if (this.showStreetNames) this.streetNames.show();
+      if (this.showStreetNames && this.showStreets) this.streetNames.show();
       else this.streetNames.hide();
+    },
+
+    toggleStreets() {
+      this.zazzleLink = null;
+      this.showStreets = !this.showStreets;
+      if (this.roadsLayer) {
+        if (this.showStreets) this.roadsLayer.show();
+        else this.roadsLayer.hide();
+      }
+      this.toggleStreetNames();
+      if (this.scene) this.scene.render();
+    },
+
+    toggleParcels() {
+      this.zazzleLink = null;
+      if (!this.parcels) return;
+      this.showParcels = !this.showParcels;
+      if (this.showParcels) this.parcels.show();
+      else this.parcels.hide();
+      if (this.scene) this.scene.render();
+    },
+
+    retryParcels() {
+      if (this.parcels) this.parcels.load();
     },
 
     startOver() {
@@ -270,6 +319,9 @@ export default {
       this.labelColor = config.getLabelColor().toRgb();
       this.streetNamesColor = config.getLabelColor().toRgb();
       this.streetNamesStatus = 'idle';
+      this.showStreets = true;
+      this.showParcels = false;
+      this.parcelsStatus = 'idle';
 
       document.body.style.backgroundColor = config.getBackgroundColor().toRgbString();
       getCanvas().style.visibility = 'hidden';
@@ -288,9 +340,12 @@ export default {
 
     toKMLFile() {
       if (!this.grid) return;
-      toKML(this.grid, {
+      let parcels = this.parcels && this.showParcels && this.parcels.layer ? this.parcels : null;
+      toKML(this.showStreets ? this.grid : null, {
         name: this.name,
-        color: this.scene.lineColor
+        color: this.roadsLayer ? this.roadsLayer.color : this.scene.lineColor,
+        parcels: parcels && parcels.grid,
+        parcelsColor: parcels && parcels.layer.color
       });
     },
 
@@ -466,6 +521,63 @@ function recordOpenClick(link) {
   }
 }
 
+.layer-toggles {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px;
+  width: desktop-controls-width;
+  box-sizing: border-box;
+  background: card-background;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+
+  a.layer-toggle {
+    flex: 1;
+    height: 36px;
+    border-radius: 999px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    color: muted-text;
+    transition: background 0.2s, color 0.2s;
+    &:hover {
+      color: strong-text;
+      background: soft-background;
+    }
+    &.active {
+      color: white;
+      background: brand-gradient;
+      box-shadow: brand-shadow;
+    }
+    &.parcels-toggle.active {
+      background: linear-gradient(90deg, #f97316 0%, #ea580c 100%);
+      box-shadow: 0 6px 20px rgba(234, 88, 12, 0.35);
+    }
+    &.loading {
+      opacity: 0.85;
+    }
+  }
+}
+
+.layer-notice {
+  margin-top: 8px;
+  padding: 10px 14px;
+  width: desktop-controls-width;
+  box-sizing: border-box;
+  font-size: 13px;
+  color: strong-text;
+  background: card-background;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  a {
+    color: highlight-color;
+  }
+}
+
 .col {
   display: flex;
   flex: 1;
@@ -605,7 +717,7 @@ a:focus-visible {
 
 .print-window {
   margin-top: 10px;
-  max-height: calc(100vh - 80px);
+  max-height: calc(100vh - 136px);
   overflow-y: auto;
   width: desktop-controls-width;
   padding: 18px 20px 20px;
@@ -729,7 +841,7 @@ a:focus-visible {
     margin: 8px;
 
     .preview-actions,.error,
-    .controls, .print-window {
+    .controls, .print-window, .layer-toggles, .layer-notice {
       width: 100%;
     }
     .loading-container {
@@ -738,7 +850,7 @@ a:focus-visible {
 
     .print-window {
       font-size: 14px;
-      max-height: calc(100vh - 72px);
+      max-height: calc(100vh - 128px);
       padding: 16px;
     }
     .print-window .row a.col {
