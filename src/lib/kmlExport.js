@@ -11,7 +11,7 @@ export default function kmlExport(grid, options = {}) {
   let streetsFolder = grid ? streetsToKML(grid, options) : '';
   let parcelsFolder = options.parcels ? parcelsToKML(options.parcels) : '';
 
-  let title = escapeXML(options.name || (grid && grid.name) || 'City roads');
+  let title = escapeXML(options.name || (grid && grid.name) || 'Calles de la ciudad');
   return `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
 <Document>
@@ -50,9 +50,9 @@ function streetsToKML(grid, options) {
     let street = streets.get(name);
     placemarks.push(placemark(name, street.highway, street.lines));
   });
-  if (unnamed.length) placemarks.push(placemark(options.unnamedLabel || 'Unnamed roads', '', unnamed));
+  if (unnamed.length) placemarks.push(placemark(options.unnamedLabel || 'Calles sin nombre', '', unnamed));
 
-  return `<Folder><name>Streets</name>\n${placemarks.join('\n')}\n</Folder>`;
+  return `<Folder><name>Calles</name>\n${placemarks.join('\n')}\n</Folder>`;
 }
 
 function parcelsToKML(grid) {
@@ -61,9 +61,9 @@ function parcelsToKML(grid) {
     let coordinates = getCoordinates(grid, element);
     if (coordinates.length < 2) return;
     let tags = element.tags || {};
-    let kind = tags.building ? 'building' + (tags.building !== 'yes' ? ': ' + tags.building : '') :
-      tags.landuse ? 'landuse: ' + tags.landuse : '';
-    let name = tags.name || tags['addr:housenumber'] && [tags['addr:street'], tags['addr:housenumber']].filter(Boolean).join(' ') || kind || 'parcel';
+    let kind = tags.building ? 'edificio' + (tags.building !== 'yes' ? ': ' + tags.building : '') :
+      tags.landuse ? 'uso del suelo: ' + tags.landuse : '';
+    let name = tags.name || tags['addr:housenumber'] && [tags['addr:street'], tags['addr:housenumber']].filter(Boolean).join(' ') || kind || 'parcela';
     let closed = element.nodes.length > 3 && element.nodes[0] === element.nodes[element.nodes.length - 1];
     let geometry = closed ?
       `<Polygon><outerBoundaryIs><LinearRing><coordinates>${coordinates.join(' ')}</coordinates></LinearRing></outerBoundaryIs></Polygon>` :
@@ -71,7 +71,7 @@ function parcelsToKML(grid) {
     let description = kind ? `<description>${escapeXML(kind)}</description>` : '';
     placemarks.push(`<Placemark><name>${escapeXML(name)}</name>${description}<styleUrl>#parcel</styleUrl>${geometry}</Placemark>`);
   });
-  return `<Folder><name>Parcels</name>\n${placemarks.join('\n')}\n</Folder>`;
+  return `<Folder><name>Parcelas</name>\n${placemarks.join('\n')}\n</Folder>`;
 }
 
 function getCoordinates(grid, element) {

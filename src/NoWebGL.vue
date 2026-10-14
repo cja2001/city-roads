@@ -1,13 +1,13 @@
 <template>
   <div class='absolute no-webgl'>
-    <h3>WebGL is not enabled :(</h3>
-    <p>This website renders millions of roads at once.</p>
+    <h3>WebGL no está activado :(</h3>
+    <p>Este sitio dibuja millones de calles a la vez.</p>
     <p>
-      To render this amount of data fast, the website uses <a href='https://get.webgl.org/'>WebGL</a>,
-      which seem to be not supported by the device that you are using.
+      Para dibujar tantos datos rápido usa <a href='https://get.webgl.org/'>WebGL</a>,
+      que parece no estar disponible en este dispositivo.
     </p>
-    <p>Please try a different device to play with this website</p>
-    <img src="https://i.imgur.com/Fbbe5a6.png" alt="demo">
+    <p>Prueba con otro dispositivo para usar este sitio.</p>
+    <img src="https://i.imgur.com/Fbbe5a6.png" alt="ejemplo">
   </div>
 </template>
 <style lang="stylus" scoped>

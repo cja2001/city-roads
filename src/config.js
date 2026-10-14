@@ -10,6 +10,11 @@ export default {
   // So, using S3
   areaServer: 'https://d2uf7yjjctyxf.cloudfront.net/nov-02-2020',
 
+  /**
+   * Serverless function that reads Overture Maps streets (api/overture.mjs).
+   */
+  overtureApi: '/api/overture',
+
   getDefaultLineColor() {
     return tinycolor('rgba(26, 26, 26, 0.8)');
   },

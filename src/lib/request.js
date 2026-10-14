@@ -83,7 +83,7 @@ export default function request(url, options) {
       if (req.status !== 200) {
         reject({
           statusError: req.status,
-          message: `Unexpected status code ${req.status} when calling ${url}`
+          message: `Código de estado inesperado ${req.status} al llamar a ${url}`
         });
         return;
       }
@@ -99,7 +99,7 @@ export default function request(url, options) {
 
     function transferFailed() {
       clearTimeout(responseTimer);
-      reject(`Failed to download ${url}`);
+      reject(`No se pudo descargar ${url}`);
     }
 
     function transferTimedOut() {
@@ -108,7 +108,7 @@ export default function request(url, options) {
       req.abort();
       reject({
         timedOut: true,
-        message: `${url} did not respond in ${Math.round(options.responseTimeout / 1000)} seconds`
+        message: `${url} no respondió en ${Math.round(options.responseTimeout / 1000)} segundos`
       });
     }
 
@@ -116,7 +116,7 @@ export default function request(url, options) {
       clearTimeout(responseTimer);
       reject({
         cancelled: true,
-        message: `Cancelled download of ${url}`
+        message: `Descarga cancelada de ${url}`
       });
     }
   }

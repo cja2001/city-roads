@@ -11,10 +11,10 @@ const MAX_CACHED_TILES = 600;
  */
 export const BASE_MAPS = {
   none: {
-    name: 'None'
+    name: 'Ninguno'
   },
   map: {
-    name: 'Map',
+    name: 'Mapa',
     url: (z, x, y, retina) => `https://${'abcd'[(x + y) % 4]}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/${z}/${x}/${y}${retina ? '@2x' : ''}.png`,
     maxZoom: 20,
     attribution: '© CARTO'
@@ -26,10 +26,10 @@ export const BASE_MAPS = {
     attribution: ''
   },
   satellite: {
-    name: 'Satellite',
+    name: 'Satélite',
     url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,
     maxZoom: 19,
-    attribution: 'Imagery © Esri, Maxar, Earthstar Geographics'
+    attribution: 'Imágenes © Esri, Maxar, Earthstar Geographics'
   }
 };
 
