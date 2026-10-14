@@ -1,4 +1,4 @@
-import tinycolor from 'tinycolor2';
+import {color} from './lib/mapStyles.js';
 
 export default {
   /**
@@ -15,14 +15,21 @@ export default {
    */
   overtureApi: '/api/overture',
 
+  // Map colors follow the light / dark mode (see lib/mapStyles.js).
   getDefaultLineColor() {
-    return tinycolor('rgba(26, 26, 26, 0.8)');
+    return color('roads');
   },
   getLabelColor() {
-    return tinycolor('#161616');
+    return color('title');
+  },
+  getStreetNamesColor() {
+    return color('labels');
+  },
+  getParcelsColor() {
+    return color('parcels');
   },
 
   getBackgroundColor() {
-    return tinycolor('#F7F2E8');
+    return color('background');
   }
 }

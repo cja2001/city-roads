@@ -4,9 +4,9 @@ export default function svgExport(scene, options) {
   const renderer = scene.getRenderer();
   const svgExportSettings = {
     open() {
-      return `<!-- Generator: https://github.com/anvaka/city-roads
+      return `<!-- Generator: StreetData, based on city-roads by Andrei Kashcha (MIT) https://github.com/anvaka/city-roads
 Data © OpenStreetMap contributors, ODbL 1.0. https://osm.org/copyright
--->`;
+${options.source && options.source !== 'osm' ? 'Includes Overture Maps Foundation data, ODbL 1.0. https://overturemaps.org\n' : ''}-->`;
     },
     close() {
       return (options.extraSVG || '') + getPrintableElements();

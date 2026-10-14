@@ -1,4 +1,47 @@
-# city-roads
+# StreetData
+
+**Geospatial Data Extractor** · *Cada calle cuenta una historia. Extrae. Analiza. Exporta.*
+
+StreetData extrae las calles (OpenStreetMap, Overture Maps o ambas) y las parcelas (edificios y usos del
+suelo de OpenStreetMap) de cualquier lugar, las dibuja en un mapa interactivo y las exporta en KML, PNG y SVG.
+Está basado en [city-roads](https://github.com/anvaka/city-roads) de Andrei Kashcha (licencia MIT); el texto
+original del proyecto se conserva más abajo.
+
+## Uso
+
+1. **Seleccionar área**: busca un lugar (Nominatim) y elige un resultado.
+2. **Elegir datos**: fuente de las calles, parcelas y nombres de calles.
+3. **Configurar exportación**: KML, PNG o SVG y sus opciones; opcionalmente dibuja un rectángulo para recortar.
+4. **Extraer y descargar**.
+
+Haz clic en una calle o parcela para ver sus atributos en «Capas y datos». El modo claro/oscuro está en la
+barra superior y la ayuda en el botón «?».
+
+## Estructura
+
+- `src/App.vue`: distribución de la aplicación y flujo de extracción.
+- `src/components/`: barra superior, panel «Extraer datos», panel «Capas y datos», leyenda, escala, diálogos.
+- `src/lib/extractRoads.js`: descarga de calles (caché, Overpass, Overture, combinación), sin código de interfaz.
+- `src/lib/MapController.js`: escena WebGL y capas (mapa base, calles, parcelas, nombres, selección) y exportaciones.
+- `src/lib/kmlExport.js`, `src/lib/saveFile.js`, `src/lib/geometry.js`: exportación KML/PNG/SVG y recorte.
+- `src/styles/tokens.css`: colores y medidas del sistema de diseño (modo claro y oscuro).
+- `api/overture.mjs`: función de Vercel que lee Overture Maps.
+
+## Ejecutar y desplegar
+
+``` bash
+npm ci            # instalar dependencias
+npm run dev       # desarrollo en http://localhost:8080
+npm run build     # compilación de producción en dist/
+npx vite preview  # servir dist/ localmente
+```
+
+En Vercel el despliegue es automático: `vercel.json` ejecuta `npm ci` y `npm run build` y publica `dist/`
+junto con la función `api/overture.mjs`. No hacen falta variables de entorno ni claves.
+
+---
+
+# city-roads (proyecto original)
 
 Render every single road in any city at once: https://anvaka.github.io/city-roads/
 

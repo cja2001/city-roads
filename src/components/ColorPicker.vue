@@ -1,7 +1,8 @@
 
 <template>
-<div class='vue-colorpicker' @click='showPicker = true' v-click-outside='hide' >
-  <span class='vue-colorpicker-btn' :style='btnStyle' ref='triggerButton'></span>
+<div class='vue-colorpicker' v-click-outside='hide' @keydown.esc='hide'>
+  <button type='button' class='vue-colorpicker-btn' :style='btnStyle' ref='triggerButton' :aria-label='$attrs["aria-label"] || "Elegir color"'
+    :title='$attrs["aria-label"]' :aria-expanded='showPicker' @click='showPicker = !showPicker'></button>
   <div class='vue-colorpicker-panel' v-show='showPicker' :style="{left: panelLeft, top: panelTop}">
     <component :is='pickerType' :modelValue='colors' @update:modelValue='changeColor'></component>
   </div>
@@ -19,6 +20,7 @@ export default {
     'sketch-picker': Sketch,
   },
   directives: { ClickOutside },
+  inheritAttrs: false,
   props: {
     modelValue: {
       type: Object,
@@ -131,21 +133,26 @@ export default {
   cursor: pointer;
   &-btn {
     display: inline-block;
-    width: 32px;
-    height: 32px;
-    border: 2px solid white;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 2px solid var(--surface);
     border-radius: 50%;
-    box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.15), 0 2px 6px rgba(15, 23, 42, 0.15);
+    box-shadow: 0 0 0 1px var(--border);
     background: #FFFFFF;
+    cursor: pointer;
     transition: transform 0.15s;
     &:hover {
       transform: scale(1.08);
     }
+    &:focus-visible {
+      box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--sd-cyan);
+    }
   }
 
   .vue-colorpicker-panel {
-    position: absolute;
-    z-index: 1;
+    position: fixed;
+    z-index: 70;
   }
 }
 </style>

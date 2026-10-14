@@ -51,7 +51,11 @@ export default {
   }
 
   input {
-    caret-color: primary-text;
+    border: 0;
+    outline: none;
+    margin: 0;
+    font-size: inherit;
+    caret-color: currentColor;
     color: transparent;
     font-family: labels-font;
     background: transparent;

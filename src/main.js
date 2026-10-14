@@ -3,6 +3,8 @@
 import {createApp} from 'vue';
 import {require as d3Require} from 'd3-require';
 import {isWebGLEnabled} from 'w-gl';
+import './styles/tokens.css';
+import './styles/base.css';
 import App from './App.vue';
 import NoWebGL from './NoWebGL.vue';
 import Query from './lib/Query.js';
