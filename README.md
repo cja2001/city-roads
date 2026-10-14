@@ -10,6 +10,12 @@ The data is fetched from OpenStreetMap using [overpass API](http://overpass-turb
 is free (as long as you follow ODbL licenses), it can be rate-limited and sometimes it is slow. After all
 we are downloading thousands of roads within an area!
 
+Roads can also come from [Overture Maps](https://overturemaps.org) (pick *Overture* under the
+search box). Overture publishes its data as large GeoParquet files with no query API, so the
+serverless function `api/overture.mjs` keeps an index of which part of which file covers which
+area and returns only the roads of the requested city. The QGIS plugin in `qgis-plugin/`
+uses the same function.
+
 To improve the performance of download, I indexed ~3,000 cities with population larger than 100,000 people and
 stored into a [very simple](https://github.com/anvaka/index-large-cities/blob/master/proto/place.proto) protobuf format. The cities are stored into a cache in this github [repository](https://github.com/anvaka/index-large-cities).
 

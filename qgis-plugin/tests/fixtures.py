@@ -36,3 +36,39 @@ OVERPASS = {'elements': [
 
 def as_bytes(value):
     return json.dumps(value).encode('utf-8')
+
+
+# Fake answers of the City Roads /api/overture function for the same town.
+OVERTURE_RELEASE = '2026-09-23.1'
+OVERTURE_INDEX = {
+    'release': OVERTURE_RELEASE,
+    'files': [['release/x/part-0.parquet', 100], ['release/x/part-1.parquet', 100]],
+    'groups': [
+        [0, 7, -89.21, 13.68, -89.18, 13.71],   # covers the town
+        [1, 3, -89.26, 13.59, -89.199, 13.70],  # overlaps it
+        [1, 4, 10.0, 50.0, 11.0, 51.0],          # far away
+    ],
+}
+
+
+def encode_segment(name, road_class, points):
+    out = [name, road_class]
+    px = py = 0
+    for i, (lon, lat) in enumerate(points):
+        x, y = round(lon * 1e6), round(lat * 1e6)
+        out += [x, y] if i == 0 else [x - px, y - py]
+        px, py = x, y
+    return out
+
+
+OVERTURE_SEGMENTS = {
+    (0, 7): [
+        encode_segment('Calle Arce', 'residential', [(-89.199, 13.695), (-89.195, 13.695)]),
+        encode_segment('Calle Arce', 'residential', [(-89.195, 13.695), (-89.191, 13.695)]),
+        encode_segment('Avenida España', 'primary', [(-89.195, 13.691), (-89.195, 13.695), (-89.195, 13.699)]),
+        encode_segment(None, 'footway', [(-89.192, 13.692), (-89.193, 13.693)]),
+    ],
+    (1, 3): [
+        encode_segment('Camino Afuera', 'track', [(-89.25, 13.60), (-89.24, 13.61)]),  # outside the town
+    ],
+}

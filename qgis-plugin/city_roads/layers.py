@@ -10,10 +10,11 @@ from qgis.core import (
 from .core.osm import STREET_FIELDS, geojson_to_wkt
 
 WGS84 = 'EPSG:4326'
-ATTRIBUTION = '© colaboradores de OpenStreetMap, ODbL 1.0'
+OSM_ATTRIBUTION = '© colaboradores de OpenStreetMap, ODbL 1.0'
+OVERTURE_ATTRIBUTION = 'Overture Maps Foundation; © colaboradores de OpenStreetMap, ODbL 1.0'
 
 
-def streets_layer(streets, title, color='#1a1a1a', labels=True):
+def streets_layer(streets, title, color='#1a1a1a', labels=True, attribution=OSM_ATTRIBUTION):
     layer = QgsVectorLayer('LineString?crs=%s' % WGS84, title, 'memory')
     provider = layer.dataProvider()
     fields = [QgsField('osm_id', QVariant.LongLong)] + [QgsField(name, QVariant.String) for name in STREET_FIELDS]
@@ -33,7 +34,7 @@ def streets_layer(streets, title, color='#1a1a1a', labels=True):
     layer.renderer().setSymbol(symbol)
     if labels:
         set_street_labels(layer)
-    layer.setAttribution(ATTRIBUTION)
+    layer.setAttribution(attribution)
     return layer
 
 

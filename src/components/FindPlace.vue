@@ -8,6 +8,11 @@
       <input class='query-input' v-model='enteredInput' type='text' placeholder='Enter a city name to start' ref='input'>
       <a type='submit' class='search-submit' href='#' @click.prevent='onSubmit' v-if='enteredInput && !hideInput'>{{mainActionText}}</a>
   </form>
+  <div class='source-picker' role='radiogroup' aria-label='Road data source'>
+    <span class='source-label'>Roads from</span>
+    <a href='#' role='radio' :aria-checked='source === "osm"' :class='{active: source === "osm"}' @click.prevent='setSource("osm")'>OpenStreetMap</a>
+    <a href='#' role='radio' :aria-checked='source === "overture"' :class='{active: source === "overture"}' @click.prevent='setSource("overture")' title='Overture Maps: OpenStreetMap combined with data from Microsoft, TomTom and Meta'>Overture</a>
+  </div>
   <div v-if='showWarning' class='prompt message note shadow'>
     Note: Large cities may require 200MB+ of data transfer and may need a powerful device to render.
   </div>
@@ -37,7 +42,7 @@
   </div>
   <div v-if='error' class='error message shadow'>
     <div v-if='isServerError(error)'>
-      <div>OpenStreetMap servers are busy or temporarily unavailable.</div>
+      <div>{{sourceName}} servers are busy or temporarily unavailable.</div>
       <div class='error-note'>We tried {{error.serversAttempted || 'multiple'}} servers but none responded in time. This usually resolves within a few minutes.</div>
       <div class='error-actions'>
         <a href='#' @click.prevent="retry" class='retry-btn'>Retry</a>
@@ -80,6 +85,7 @@ import queryState from '../lib/appState.js';
 import config from '../config.js';
 import Progress from '../lib/Progress.js'
 import LoadOptions from '../lib/LoadOptions.js';
+import loadOvertureGrid from '../lib/overtureQuery.js';
 import Pbf from 'pbf';
 import {place} from '../proto/place.js';
 
@@ -107,7 +113,13 @@ export default {
       clicked: false,
       showWarning: hasValidArea, 
       mainActionText: hasValidArea ? 'Download Area' : FIND_TEXT,
+      source: appState.get('source') === 'overture' ? 'overture' : 'osm',
       suggestions: []
+    }
+  },
+  computed: {
+    sourceName() {
+      return this.source === 'overture' ? 'Overture Maps' : 'OpenStreetMap';
     }
   },
   watch: {
@@ -130,6 +142,13 @@ export default {
     clearInterval(this.notifyStillLoading);
   },
   methods: {
+    setSource(source) {
+      this.source = source;
+      // OpenStreetMap is the default and keeps the url short.
+      if (source === 'overture') appState.set('source', source);
+      else appState.unset('source');
+    },
+
     onSubmit() {
       queryState.set('q', this.enteredInput);
       this.cancelRequest()
@@ -209,7 +228,10 @@ export default {
     pickSuggestion(suggestion) {
       this.lastSuggestion = suggestion;
       this.error = false;
-      if (appState.isCacheEnabled() && suggestion.areaId) {
+      if (this.source === 'overture') {
+        // The cache only has OpenStreetMap roads.
+        this.useOverture(suggestion);
+      } else if (appState.isCacheEnabled() && suggestion.areaId) {
         this.checkCache(suggestion)
           .catch(error => {
             if (error.cancelled) return; // no need to do anything. They've cancelled
@@ -250,22 +272,31 @@ export default {
     },
 
     useOSM(suggestion) {
-      this.loading = 'Connecting to OpenStreetMap...'
-      
-      // it may take a while to load data. 
-      this.restartLoadingMonitor();
-      let progress = this.generateNewProgressToken();
-      withBoundary(suggestion)
-      .then(place => {
-        if (progress.isCancelled) throw {cancelled: true};
-        return Query.runFromOptions(new LoadOptions({
+      this.loadRoads(suggestion, 'Connecting to OpenStreetMap...', (place, progress) =>
+        Query.runFromOptions(new LoadOptions({
           wayFilter: Query.Road,
           // Include tags, so street names come with the roads in one request.
           outputMethod: 'body',
           areaId: place.areaId,
           bbox: place.bbox,
           boundary: place.boundary
-        }), progress);
+        }), progress));
+    },
+
+    useOverture(suggestion) {
+      this.loadRoads(suggestion, 'Connecting to Overture Maps...', loadOvertureGrid);
+    },
+
+    loadRoads(suggestion, message, load) {
+      this.loading = message;
+
+      // it may take a while to load data.
+      this.restartLoadingMonitor();
+      let progress = this.generateNewProgressToken();
+      withBoundary(suggestion)
+      .then(place => {
+        if (progress.isCancelled) throw {cancelled: true};
+        return load(place, progress);
       })
       .then(grid => {
         this.loading = null;
@@ -528,6 +559,40 @@ input {
 
 .error {
   overflow-x: auto;
+}
+
+.source-picker {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 4px;
+  align-self: center;
+  background: card-background;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  font-size: 13px;
+  .source-label {
+    padding: 0 8px 0 10px;
+    color: muted-text;
+  }
+  a {
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-weight: 600;
+    text-decoration: none;
+    color: muted-text;
+    transition: background 0.2s, color 0.2s;
+    &:hover {
+      color: strong-text;
+      background: soft-background;
+    }
+    &.active {
+      color: white;
+      background: brand-gradient;
+      box-shadow: brand-shadow;
+    }
+  }
 }
 
 .find-place {
