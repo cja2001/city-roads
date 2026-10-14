@@ -1,0 +1,16 @@
+[general]
+name=City Roads
+qgisMinimumVersion=3.22
+description=Busca una ciudad, descarga sus calles de OpenStreetMap con sus nombres y las exporta a KML.
+about=Port del buscador de City Roads (https://github.com/cja2001/city-roads) para QGIS. Busca una ciudad en Nominatim, descarga sus calles de Overpass recortadas al límite de la ciudad (con varios servidores de respaldo) y las añade como capa con nombre, tipo de vía y otros atributos. Cualquier capa de líneas se puede exportar a KML con una marca por nombre de calle, igual que en la web. Datos © colaboradores de OpenStreetMap, ODbL 1.0.
+version=1.0.0
+author=Albert (cja2001)
+email=92105486+cja2001@users.noreply.github.com
+homepage=https://github.com/cja2001/city-roads/tree/main/qgis-plugin
+repository=https://github.com/cja2001/city-roads
+tracker=https://github.com/cja2001/city-roads/issues
+tags=openstreetmap,osm,streets,calles,roads,kml,overpass,nominatim
+category=Web
+icon=icon.png
+experimental=False
+deprecated=False
