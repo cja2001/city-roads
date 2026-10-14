@@ -21,6 +21,20 @@ const COORDINATE_SCALE = 1e6;
  *   as returned by findBoundaryByName.
  */
 export default function loadOvertureGrid(place, progress) {
+  return loadOvertureSegments(place, progress).then(segments => {
+    let elements = segmentsToElements(segments);
+    if (place.boundary) elements = clipToBoundary(elements, place.boundary);
+    let grid = Grid.fromOSMResponse(elements);
+    grid.queryBounds = {areaId: place.areaId, bbox: place.bbox, boundary: place.boundary, source: 'overture'};
+    return grid;
+  });
+}
+
+/**
+ * Downloads the compact Overture segments ([name, class, osmWayIds, x0, y0,
+ * dx1, dy1, ...]) that touch the bounding box of a place.
+ */
+export function loadOvertureSegments(place, progress) {
   progress = progress || new Progress();
   if (!place.bbox) {
     return Promise.reject(new Error('Overture needs the bounding box of the place. Please search for it again.'));
@@ -45,19 +59,15 @@ export default function loadOvertureGrid(place, progress) {
         return response.segments;
       });
     });
-  }).then(parts => {
-    let elements = segmentsToElements([].concat(...parts));
-    if (place.boundary) elements = clipToBoundary(elements, place.boundary);
-    let grid = Grid.fromOSMResponse(elements);
-    grid.queryBounds = {areaId: place.areaId, bbox: place.bbox, boundary: place.boundary, source: 'overture'};
-    return grid;
-  });
+  }).then(parts => [].concat(...parts));
 }
 
 /**
- * Turns the compact segments of the api ([name, class, x0, y0, dx1, dy1, ...])
- * into OpenStreetMap nodes and ways. Points at the same position share a
- * node, so crossings are connected like in OpenStreetMap.
+ * Turns the compact segments of the api ([name, class, osmWayIds, x0, y0,
+ * dx1, dy1, ...]) into OpenStreetMap nodes and ways. Points at the same
+ * position share a node, so crossings are connected like in OpenStreetMap.
+ * Ids count down from -1 so they never clash with OpenStreetMap ids when both
+ * sources are combined.
  */
 export function segmentsToElements(segments) {
   let nodes = [];
@@ -69,13 +79,13 @@ export function segmentsToElements(segments) {
     let roadClass = segment[1];
     let wayNodes = [];
     let x = 0, y = 0;
-    for (let i = 2; i + 1 < segment.length; i += 2) {
+    for (let i = 3; i + 1 < segment.length; i += 2) {
       x += segment[i];
       y += segment[i + 1];
       let key = x + ',' + y;
       let id = nodeIds.get(key);
       if (id === undefined) {
-        id = nodes.length + 1;
+        id = -(nodes.length + 1);
         nodeIds.set(key, id);
         nodes.push({type: 'node', id, lon: x / COORDINATE_SCALE, lat: y / COORDINATE_SCALE});
       }
@@ -84,7 +94,7 @@ export function segmentsToElements(segments) {
     if (wayNodes.length < 2) return;
     let tags = {highway: roadClass && roadClass !== 'unknown' ? roadClass : 'road'};
     if (name) tags.name = name;
-    ways.push({type: 'way', id: ways.length + 1, nodes: wayNodes, tags});
+    ways.push({type: 'way', id: -(ways.length + 1), nodes: wayNodes, tags});
   });
 
   return nodes.concat(ways);

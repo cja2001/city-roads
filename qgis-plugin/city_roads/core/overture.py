@@ -81,9 +81,10 @@ def pick_groups(index, bbox):
 
 
 def segments_to_elements(segments, class_filter=None):
-    """Compact segments ([name, class, x0, y0, dx1, dy1, ...]) to OpenStreetMap
-    nodes and ways with `name` and `highway` tags. Points at the same position
-    share a node."""
+    """Compact segments ([name, class, osm_way_ids, x0, y0, dx1, dy1, ...]) to
+    OpenStreetMap nodes and ways with `name` and `highway` tags. Points at the
+    same position share a node. Ids count down from -1 so they never clash
+    with OpenStreetMap ids when both sources are combined."""
     nodes = []
     ways = []
     node_ids = {}
@@ -93,13 +94,13 @@ def segments_to_elements(segments, class_filter=None):
             continue
         way_nodes = []
         x = y = 0
-        for i in range(2, len(segment) - 1, 2):
+        for i in range(3, len(segment) - 1, 2):
             x += segment[i]
             y += segment[i + 1]
             key = (x, y)
             node_id = node_ids.get(key)
             if node_id is None:
-                node_id = len(nodes) + 1
+                node_id = -(len(nodes) + 1)
                 node_ids[key] = node_id
                 nodes.append({'type': 'node', 'id': node_id,
                               'lon': x / COORDINATE_SCALE, 'lat': y / COORDINATE_SCALE})
@@ -110,15 +111,12 @@ def segments_to_elements(segments, class_filter=None):
         tags = {'highway': road_class if road_class != 'unknown' else 'road'}
         if name:
             tags['name'] = name
-        ways.append({'type': 'way', 'id': len(ways) + 1, 'nodes': way_nodes, 'tags': tags})
+        ways.append({'type': 'way', 'id': -(len(ways) + 1), 'nodes': way_nodes, 'tags': tags})
     return nodes + ways
 
 
-def download_streets(place, road_filter='all', clip=True, http=urllib_http, api=None,
-                     is_cancelled=None, on_status=None):
-    """Downloads the streets of a place found by osm.search_places from
-    Overture. Returns the same list as osm.download_streets; `osm_id` is empty
-    because Overture segments are not OpenStreetMap ways."""
+def download_segments(place, http=urllib_http, api=None, is_cancelled=None, on_status=None):
+    """Compact Overture segments that touch the bounding box of a place."""
     api = (api or DEFAULT_API).rstrip('/')
     is_cancelled = is_cancelled or (lambda: False)
     on_status = on_status or (lambda message: None)
@@ -140,7 +138,15 @@ def download_streets(place, road_filter='all', clip=True, http=urllib_http, api=
             ('release', release), ('file', group[0]), ('group', group[1]),
             ('bbox', ','.join(_format(v) for v in bbox))], safe=','))
         segments.extend(_get_json(http, url, is_cancelled).get('segments') or [])
+    return segments
 
+
+def download_streets(place, road_filter='all', clip=True, http=urllib_http, api=None,
+                     is_cancelled=None, on_status=None):
+    """Downloads the streets of a place found by osm.search_places from
+    Overture. Returns the same list as osm.download_streets; `osm_id` is empty
+    because Overture segments are not OpenStreetMap ways."""
+    segments = download_segments(place, http=http, api=api, is_cancelled=is_cancelled, on_status=on_status)
     elements = segments_to_elements(segments, CLASS_FILTERS.get(road_filter))
     if clip and place.get('boundary'):
         elements = clip_to_boundary(elements, place['boundary'])

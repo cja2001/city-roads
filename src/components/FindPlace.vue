@@ -12,6 +12,7 @@
     <span class='source-label'>Roads from</span>
     <a href='#' role='radio' :aria-checked='source === "osm"' :class='{active: source === "osm"}' @click.prevent='setSource("osm")'>OpenStreetMap</a>
     <a href='#' role='radio' :aria-checked='source === "overture"' :class='{active: source === "overture"}' @click.prevent='setSource("overture")' title='Overture Maps: OpenStreetMap combined with data from Microsoft, TomTom and Meta'>Overture</a>
+    <a href='#' role='radio' :aria-checked='source === "both"' :class='{active: source === "both"}' @click.prevent='setSource("both")' title='All OpenStreetMap roads, plus the Overture roads OpenStreetMap is missing. Roads in both are kept once.'>Both</a>
   </div>
   <div v-if='showWarning' class='prompt message note shadow'>
     Note: Large cities may require 200MB+ of data transfer and may need a powerful device to render.
@@ -85,7 +86,9 @@ import queryState from '../lib/appState.js';
 import config from '../config.js';
 import Progress from '../lib/Progress.js'
 import LoadOptions from '../lib/LoadOptions.js';
-import loadOvertureGrid from '../lib/overtureQuery.js';
+import loadOvertureGrid, {loadOvertureSegments} from '../lib/overtureQuery.js';
+import mergeSources from '../lib/mergeSources.js';
+import clipToBoundary from '../lib/clipToBoundary.js';
 import Pbf from 'pbf';
 import {place} from '../proto/place.js';
 
@@ -113,13 +116,14 @@ export default {
       clicked: false,
       showWarning: hasValidArea, 
       mainActionText: hasValidArea ? 'Download Area' : FIND_TEXT,
-      source: appState.get('source') === 'overture' ? 'overture' : 'osm',
+      source: ['overture', 'both'].includes(appState.get('source')) ? appState.get('source') : 'osm',
       suggestions: []
     }
   },
   computed: {
     sourceName() {
-      return this.source === 'overture' ? 'Overture Maps' : 'OpenStreetMap';
+      return this.source === 'overture' ? 'Overture Maps' :
+        this.source === 'both' ? 'OpenStreetMap or Overture Maps' : 'OpenStreetMap';
     }
   },
   watch: {
@@ -145,7 +149,7 @@ export default {
     setSource(source) {
       this.source = source;
       // OpenStreetMap is the default and keeps the url short.
-      if (source === 'overture') appState.set('source', source);
+      if (source !== 'osm') appState.set('source', source);
       else appState.unset('source');
     },
 
@@ -231,6 +235,8 @@ export default {
       if (this.source === 'overture') {
         // The cache only has OpenStreetMap roads.
         this.useOverture(suggestion);
+      } else if (this.source === 'both') {
+        this.useBoth(suggestion);
       } else if (appState.isCacheEnabled() && suggestion.areaId) {
         this.checkCache(suggestion)
           .catch(error => {
@@ -272,15 +278,20 @@ export default {
     },
 
     useOSM(suggestion) {
-      this.loadRoads(suggestion, 'Connecting to OpenStreetMap...', (place, progress) =>
-        Query.runFromOptions(new LoadOptions({
-          wayFilter: Query.Road,
-          // Include tags, so street names come with the roads in one request.
-          outputMethod: 'body',
-          areaId: place.areaId,
-          bbox: place.bbox,
-          boundary: place.boundary
-        }), progress));
+      this.loadRoads(suggestion, 'Connecting to OpenStreetMap...', loadOSMGrid);
+    },
+
+    useBoth(suggestion) {
+      this.loadRoads(suggestion, 'Connecting to OpenStreetMap and Overture Maps...', (place, progress) =>
+        Promise.all([loadOSMGrid(place, progress), loadOvertureSegments(place, progress)])
+          .then(([osmGrid, segments]) => {
+            let merged = mergeSources(osmGrid.elements, segments);
+            let elements = place.boundary ? clipToBoundary(merged.elements, place.boundary) : merged.elements;
+            let grid = Grid.fromOSMResponse(elements);
+            grid.queryBounds = Object.assign({}, osmGrid.queryBounds, {source: 'both'});
+            console.info(`Overture added ${merged.added} roads and ${merged.named} names to OpenStreetMap`);
+            return grid;
+          }));
     },
 
     useOverture(suggestion) {
@@ -355,6 +366,17 @@ function withBoundary(suggestion) {
   return findBoundaryByAreaId(suggestion.areaId)
     .then(found => found ? Object.assign({}, suggestion, {bbox: found.bbox, boundary: found.boundary}) : suggestion)
     .catch(() => suggestion);
+}
+
+function loadOSMGrid(place, progress) {
+  return Query.runFromOptions(new LoadOptions({
+    wayFilter: Query.Road,
+    // Include tags, so street names come with the roads in one request.
+    outputMethod: 'body',
+    areaId: place.areaId,
+    bbox: place.bbox,
+    boundary: place.boundary
+  }), progress);
 }
 
 function serializeBBox(bbox) {

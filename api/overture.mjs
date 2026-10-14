@@ -8,8 +8,9 @@
  *
  *   GET /api/overture?release=R&file=F&group=G&bbox=west,south,east,north
  *     Roads of one row group that touch the box:
- *     {segments: [[name, class, x0, y0, dx1, dy1, ...]]}, coordinates in
- *     millionths of a degree, deltas after the first point.
+ *     {segments: [[name, class, osmWayIds, x0, y0, dx1, dy1, ...]]}, coordinates
+ *     in millionths of a degree, deltas after the first point. osmWayIds are
+ *     the OpenStreetMap ways the segment came from (empty for other sources).
  *
  * See _overture.mjs for how the files are read.
  */

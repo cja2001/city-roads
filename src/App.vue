@@ -111,7 +111,7 @@
     <span v-if='streetNamesStatus === "loading"'>Loading street names...</span>
     <span v-else>Could not load street names. <a href='#' @click.prevent='loadStreetNames'>Try again</a></span>
   </div>
-  <div v-if='placeFound' class='license printable can-drag' :style='{color: labelColorRGBA}'>data <a href='https://www.openstreetmap.org/about/' target="_blank" :style='{color: labelColorRGBA}'>© OpenStreetMap</a><span v-if='roadSource === "overture"'> · <a href='https://overturemaps.org/' target="_blank" :style='{color: labelColorRGBA}'>Overture Maps</a></span><span v-if='baseMapAttribution'> · {{baseMapAttribution}}</span></div>
+  <div v-if='placeFound' class='license printable can-drag' :style='{color: labelColorRGBA}'>data <a href='https://www.openstreetmap.org/about/' target="_blank" :style='{color: labelColorRGBA}'>© OpenStreetMap</a><span v-if='roadSource !== "osm"'> · <a href='https://overturemaps.org/' target="_blank" :style='{color: labelColorRGBA}'>Overture Maps</a></span><span v-if='baseMapAttribution'> · {{baseMapAttribution}}</span></div>
 </template>
 
 <script>
@@ -232,7 +232,7 @@ export default {
         appState.set('bbox', grid.bboxString);
       }
       this.placeFound = true;
-      this.roadSource = grid.queryBounds && grid.queryBounds.source === 'overture' ? 'overture' : 'osm';
+      this.roadSource = grid.queryBounds && grid.queryBounds.source || 'osm';
       this.name = grid.name.split(',')[0];
       let canvas = getCanvas();
       canvas.style.visibility = 'visible';

@@ -326,7 +326,10 @@ function rangeFile(key, size) {
 
 /**
  * Road segments of one row group that touch `bbox` ([west, south, east, north]).
- * Returns [{name, class, coordinates: [[lon, lat], ...]}].
+ * Returns [{name, class, osm, coordinates: [[lon, lat], ...]}], where `osm` lists
+ * the OpenStreetMap way ids the segment was made from (empty when it comes
+ * from another source, such as TomTom). Clients use it to merge Overture
+ * with OpenStreetMap without duplicates.
  */
 export async function readSegments(key, size, group, bbox) {
   let metadata = await fileMetadata(key, size);
@@ -340,7 +343,7 @@ export async function readSegments(key, size, group, bbox) {
     file: rangeFile(key, size),
     metadata,
     compressors,
-    columns: ['names', 'subtype', 'class', 'geometry', 'bbox'],
+    columns: ['names', 'subtype', 'class', 'geometry', 'bbox', 'sources'],
     rowStart,
     rowEnd,
   });
@@ -355,21 +358,33 @@ export async function readSegments(key, size, group, bbox) {
     let lines = geometry && geometry.type === 'LineString' ? [geometry.coordinates] :
       geometry && geometry.type === 'MultiLineString' ? geometry.coordinates : [];
     let name = row.names && row.names.primary || null;
+    let osm = osmWayIds(row.sources);
     for (let coordinates of lines) {
-      if (coordinates.length > 1) segments.push({name, class: row.class || 'unknown', coordinates});
+      if (coordinates.length > 1) segments.push({name, class: row.class || 'unknown', osm, coordinates});
     }
   }
   return segments;
 }
 
+/** OpenStreetMap way ids in Overture `sources` (record ids look like "w123@4"). */
+export function osmWayIds(sources) {
+  let ids = [];
+  (sources || []).forEach(source => {
+    if (!source || source.dataset !== 'OpenStreetMap') return;
+    let match = /^w(\d+)/.exec(source.record_id || '');
+    if (match && !ids.includes(Number(match[1]))) ids.push(Number(match[1]));
+  });
+  return ids;
+}
+
 /**
- * Compact form of segments: {segments: [[name, class, x0, y0, dx1, dy1, ...]]}
+ * Compact form of segments: {segments: [[name, class, osmWayIds, x0, y0, dx1, dy1, ...]]}
  * with coordinates as integers in millionths of a degree, deltas after the
  * first point. About a third of the size of GeoJSON.
  */
 export function encodeSegments(segments) {
   return segments.map(segment => {
-    let out = [segment.name, segment.class];
+    let out = [segment.name, segment.class, segment.osm || []];
     let px = 0, py = 0;
     segment.coordinates.forEach(([lon, lat], i) => {
       let x = Math.round(lon * COORDINATE_SCALE);

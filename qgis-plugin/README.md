@@ -20,6 +20,9 @@ sus calles de OpenStreetMap u Overture Maps con sus nombres y las exporta a KML.
    La descarga corre en segundo plano y se puede cancelar.
    Con la fuente **Overture Maps** la capa se llama `Calles (Overture): <ciudad>` y solo trae
    `name` y `highway` (la clase de vía de Overture, que usa los mismos valores que OpenStreetMap).
+   Con **OpenStreetMap + Overture** la capa `Calles (OSM + Overture): <ciudad>` trae todas las
+   calles de OpenStreetMap más las de Overture que le faltan, sin duplicados, y un campo `fuente`
+   que dice de dónde salió cada tramo.
 3. **Exportar a KML**: elige cualquier capa de líneas (la descargada u otra tuya), el campo
    con el nombre de la calle y pulsa *Exportar KML…*. El KML tiene una marca por nombre de
    calle, con todos sus tramos, igual que la exportación de la web, y se abre en Google Earth
@@ -41,6 +44,16 @@ TomTom y Meta. No tiene una API de consulta: cada versión son ~128 archivos Geo
 `api/overture.mjs` del repositorio, publicada en Vercel), que sabe qué parte de qué archivo
 cubre cada zona y devuelve solo las calles de la ciudad. El campo *Servidor de Overture* trae
 la dirección de la web; cámbialo si la web se publica en otro dominio.
+
+Al combinar las dos fuentes (`core/merge.py`, igual que `src/lib/mergeSources.js` en la web):
+
+- Se guardan todas las calles de OpenStreetMap con sus atributos.
+- Casi todas las vías de Overture vienen de OpenStreetMap, y la función dice de qué vía. Si esa
+  vía ya está descargada no se repite, pero si en OpenStreetMap no tiene nombre se toma el de
+  Overture.
+- Las demás vías de Overture (de TomTom, Microsoft… o vías que faltan en la descarga) se añaden,
+  salvo que el 80 % de su recorrido quede a menos de 8 m de una calle de OpenStreetMap: entonces
+  se considera la misma calle dibujada otra vez.
 
 ## Pruebas
 

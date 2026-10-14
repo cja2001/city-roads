@@ -51,8 +51,8 @@ OVERTURE_INDEX = {
 }
 
 
-def encode_segment(name, road_class, points):
-    out = [name, road_class]
+def encode_segment(name, road_class, points, osm=()):
+    out = [name, road_class, list(osm)]
     px = py = 0
     for i, (lon, lat) in enumerate(points):
         x, y = round(lon * 1e6), round(lat * 1e6)
@@ -63,12 +63,17 @@ def encode_segment(name, road_class, points):
 
 OVERTURE_SEGMENTS = {
     (0, 7): [
-        encode_segment('Calle Arce', 'residential', [(-89.199, 13.695), (-89.195, 13.695)]),
-        encode_segment('Calle Arce', 'residential', [(-89.195, 13.695), (-89.191, 13.695)]),
-        encode_segment('Avenida España', 'primary', [(-89.195, 13.691), (-89.195, 13.695), (-89.195, 13.699)]),
+        encode_segment('Calle Arce', 'residential', [(-89.199, 13.695), (-89.195, 13.695)], osm=[10]),
+        encode_segment('Calle Arce', 'residential', [(-89.195, 13.695), (-89.191, 13.695)], osm=[11]),
+        encode_segment('Avenida España', 'primary', [(-89.195, 13.691), (-89.195, 13.695), (-89.195, 13.699)], osm=[12]),
+        # Only in Overture (e.g. from TomTom): a new path.
         encode_segment(None, 'footway', [(-89.192, 13.692), (-89.193, 13.693)]),
+        # The same way as OpenStreetMap way 14, which has no name there.
+        encode_segment('Pasaje Nuevo', 'service', [(-89.191, 13.699), (-89.189, 13.699)], osm=[14]),
+        # Calle Arce again from another source, 3 m off: a duplicate.
+        encode_segment(None, 'residential', [(-89.19899, 13.69503), (-89.19501, 13.69503)]),
     ],
     (1, 3): [
-        encode_segment('Camino Afuera', 'track', [(-89.25, 13.60), (-89.24, 13.61)]),  # outside the town
+        encode_segment('Camino Afuera', 'track', [(-89.25, 13.60), (-89.24, 13.61)], osm=[13]),  # outside the town
     ],
 }

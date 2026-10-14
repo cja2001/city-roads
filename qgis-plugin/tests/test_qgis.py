@@ -144,10 +144,12 @@ class PluginTest(unittest.TestCase):
         dialog.source_combo.setCurrentIndex(dialog.source_combo.findData('osm'))
         self.assertFalse(dialog.overture_api.isVisibleTo(dialog))
         dialog.road_combo.setCurrentIndex(dialog.road_combo.findData('all'))
+        before = len(FakeOSM.overpass_queries)
         dialog.download()
         wait_for(dialog)
         self.assertIn('tramos descargados', dialog.status.text())
         # The first server failed with 504, the second one answered.
+        FakeOSM.overpass_queries[:] = FakeOSM.overpass_queries[before:]
         self.assertEqual([q[0].split('/')[1] for q in FakeOSM.overpass_queries], ['down', 'ok'])
         self.assertIn(b'way%5Bhighway%5D%2813.69', FakeOSM.overpass_queries[-1][1])
 
@@ -190,6 +192,7 @@ class PluginTest(unittest.TestCase):
         plugin.action.trigger()
         dialog = plugin.dialog
 
+        FakeOSM.overture_requests[:] = []
         dialog.source_combo.setCurrentIndex(dialog.source_combo.findData('overture'))
         self.assertTrue(dialog.overture_api.isVisibleTo(dialog))
         dialog.overture_api.setText('http://127.0.0.1:%d/overture/api/overture' % self.server.server_port)
@@ -207,7 +210,7 @@ class PluginTest(unittest.TestCase):
         streets = layers['Calles (Overture): Pueblo de Prueba']
         self.assertIn('Overture', streets.attribution())
         names = sorted(f['name'] or '' for f in streets.getFeatures())
-        self.assertEqual(names, ['', 'Avenida España', 'Calle Arce', 'Calle Arce'])
+        self.assertEqual(names, ['', '', 'Avenida España', 'Calle Arce', 'Calle Arce', 'Pasaje Nuevo'])
         avenue = next(f for f in streets.getFeatures() if f['name'] == 'Avenida España')
         self.assertEqual(avenue['highway'], 'primary')
 
@@ -216,10 +219,38 @@ class PluginTest(unittest.TestCase):
         dialog.export_kml()
         marks = ET.parse(out).getroot().findall('.//%sPlacemark' % KML)
         self.assertEqual([m.find(KML + 'name').text for m in marks],
-                         ['Avenida España', 'Calle Arce', 'Calles sin nombre'])
+                         ['Avenida España', 'Calle Arce', 'Pasaje Nuevo', 'Calles sin nombre'])
 
         if os.environ.get('SCREENSHOT_OVERTURE'):
             dialog.grab().save(os.environ['SCREENSHOT_OVERTURE'])
+        plugin.unload()
+
+    def test_both_sources(self):
+        iface = FakeIface()
+        plugin = classFactory(iface)
+        plugin.initGui()
+        plugin.action.trigger()
+        dialog = plugin.dialog
+
+        dialog.source_combo.setCurrentIndex(dialog.source_combo.findData('both'))
+        self.assertTrue(dialog.overture_api.isVisibleTo(dialog))
+        dialog.overture_api.setText('http://127.0.0.1:%d/overture/api/overture' % self.server.server_port)
+        dialog.city_input.setText('Pueblo de Prueba')
+        dialog.search()
+        wait_for(dialog)
+        dialog.road_combo.setCurrentIndex(dialog.road_combo.findData('all'))
+        dialog.download()
+        wait_for(dialog)
+        self.assertIn('1 tramos vienen de Overture', dialog.status.text())
+
+        layers = {layer.name(): layer for layer in QgsProject.instance().mapLayers().values()}
+        streets = layers['Calles (OSM + Overture): Pueblo de Prueba']
+        rows = sorted((f['fuente'], f['name'] or '') for f in streets.getFeatures())
+        self.assertEqual(rows, [('OpenStreetMap', 'Avenida España & Co <1>'), ('OpenStreetMap', 'Calle Arce'),
+                                ('OpenStreetMap', 'Calle Arce'), ('OpenStreetMap', 'Pasaje Nuevo'),
+                                ('Overture', '')])
+        if os.environ.get('SCREENSHOT_BOTH'):
+            dialog.grab().save(os.environ['SCREENSHOT_BOTH'])
         plugin.unload()
 
     def test_export_reprojects(self):

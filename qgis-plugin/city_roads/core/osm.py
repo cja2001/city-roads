@@ -240,9 +240,9 @@ def build_streets(elements):
     return streets
 
 
-def download_streets(place, road_filter='all', clip=True, http=urllib_http,
-                     servers=None, is_cancelled=None, on_status=None):
-    """Downloads the streets of a place found by `search_places`."""
+def download_elements(place, road_filter='all', clip=True, http=urllib_http,
+                      servers=None, is_cancelled=None, on_status=None):
+    """Nodes and ways of the streets of a place found by `search_places`."""
     way_filter = ROAD_FILTERS.get(road_filter, road_filter)
     query, needs_clip = build_query(place, way_filter)
     response = run_overpass(query, http=http, servers=servers,
@@ -250,7 +250,14 @@ def download_streets(place, road_filter='all', clip=True, http=urllib_http,
     elements = response.get('elements') or []
     if clip and needs_clip and place.get('boundary'):
         elements = clip_to_boundary(elements, place['boundary'])
-    return build_streets(elements)
+    return elements
+
+
+def download_streets(place, road_filter='all', clip=True, http=urllib_http,
+                     servers=None, is_cancelled=None, on_status=None):
+    """Downloads the streets of a place found by `search_places`."""
+    return build_streets(download_elements(place, road_filter=road_filter, clip=clip, http=http, servers=servers,
+                                           is_cancelled=is_cancelled, on_status=on_status))
 
 
 def geojson_to_wkt(geojson):

@@ -11,7 +11,8 @@ is free (as long as you follow ODbL licenses), it can be rate-limited and someti
 we are downloading thousands of roads within an area!
 
 Roads can also come from [Overture Maps](https://overturemaps.org) (pick *Overture* under the
-search box). Overture publishes its data as large GeoParquet files with no query API, so the
+search box), or from both (*Both*: every OpenStreetMap road plus the Overture roads it lacks,
+without duplicates, see `src/lib/mergeSources.js`). Overture publishes its data as large GeoParquet files with no query API, so the
 serverless function `api/overture.mjs` keeps an index of which part of which file covers which
 area and returns only the roads of the requested city. The QGIS plugin in `qgis-plugin/`
 uses the same function.
