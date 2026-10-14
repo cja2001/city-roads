@@ -39,6 +39,11 @@
         }
         document.documentElement.setAttribute('data-theme', theme);
       })();
+      // Chrome can offer installation before the app script runs; keep it.
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window.__installPromptEvent = e;
+      });
     </script>
   </head>
   <body>

@@ -17,9 +17,10 @@ original del proyecto se conserva más abajo.
 Haz clic en una calle o parcela para ver sus atributos en «Capas y datos». El modo claro/oscuro está en la
 barra superior y la ayuda en el botón «?».
 
-StreetData se puede instalar como app (PWA): Chrome, Edge y Android muestran un aviso con el botón «Instalar»,
-y en iPhone/iPad el aviso explica cómo usar Compartir → «Añadir a pantalla de inicio». Instalada, la app abre
-sin conexión; las calles, parcelas, búsquedas y teselas siguen necesitando internet.
+StreetData se puede instalar como app (PWA). Mientras no está instalada aparece un aviso con el botón
+«Instalar»: en Chrome, Edge y Android abre el diálogo de instalación del navegador; en iPhone/iPad, Samsung
+Internet, Firefox o el navegador de otra app (Instagram, Facebook...) abre los pasos para ese navegador.
+Instalada, la app abre sin conexión; las calles, parcelas, búsquedas y teselas siguen necesitando internet.
 
 ## Estructura
 

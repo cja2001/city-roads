@@ -54,6 +54,7 @@
 
   <toast-host/>
   <install-banner/>
+  <install-help-dialog v-if='pwa.helpOpen'/>
   <help-dialog v-if='helpOpen' @close='helpOpen = false'/>
   <confirm-dialog v-if='confirm' :title='confirm.title' :message='confirm.message' :confirm-label='confirm.label'
     @confirm='runConfirmed' @cancel='confirm = null'/>
@@ -73,6 +74,8 @@ import MapStatus from './components/MapStatus.vue';
 import EditableLabel from './components/EditableLabel.vue';
 import ToastHost from './components/ToastHost.vue';
 import InstallBanner from './components/InstallBanner.vue';
+import InstallHelpDialog from './components/InstallHelpDialog.vue';
+import {pwa} from './lib/pwa.js';
 import HelpDialog from './components/HelpDialog.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import PngPreviewDialog from './components/PngPreviewDialog.vue';
@@ -98,12 +101,13 @@ export default {
   name: 'App',
   components: {
     TopBar, ExtractPanel, LayersPanel, EmptyState, MapControls, MapLegend, MapStatus, EditableLabel,
-    ToastHost, InstallBanner, HelpDialog, ConfirmDialog, PngPreviewDialog, LoaderCircle
+    ToastHost, InstallBanner, InstallHelpDialog, HelpDialog, ConfirmDialog, PngPreviewDialog, LoaderCircle
   },
   data() {
     let theme = getInitialTheme();
     let initialQuery = appState.get('q') || '';
     return {
+      pwa,
       theme,
       mapStyle: theme,
       source: getSavedSource(),

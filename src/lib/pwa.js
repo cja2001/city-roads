@@ -4,37 +4,46 @@ import {reactive} from 'vue';
  * Installable app (PWA) support: registers the service worker and keeps track
  * of whether StreetData is installed and how it can be installed here.
  *
- * Chrome, Edge and Android fire `beforeinstallprompt`, which lets us show our
- * own install button. Safari on iPhone/iPad never does: there the app is
- * installed from Share → "Add to Home Screen", so we explain that instead.
+ * Chrome, Edge and Android fire `beforeinstallprompt`, which lets our
+ * «Instalar» button open the browser's install dialog. Browsers that never
+ * fire it (Safari on iPhone, Samsung Internet, Firefox, apps' built-in
+ * browsers...) can't be installed from a button, so there the same button
+ * opens the steps for that browser.
  */
 const DISMISS_KEY = 'streetdata-install-dismissed';
 const DISMISS_DAYS = 7;
+// How long a click waits for Chrome to offer its install dialog before
+// falling back to the steps.
+const PROMPT_WAIT_MS = 1200;
 
 let deferredPrompt = null;
+let promptWaiters = [];
 
 export const pwa = reactive({
   installed: isStandalone(),
-  // 'prompt' (native install dialog available), 'ios', 'mac-safari', 'manual' or ''.
-  method: '',
-  bannerOpen: false
+  canPrompt: false,
+  // ios-safari, ios-other, in-app, samsung, firefox-android, android,
+  // mac-safari, desktop-chromium, desktop-other
+  platform: detectPlatform(),
+  bannerOpen: false,
+  helpOpen: false
 });
 
-pwa.method = detectManualMethod();
-
 export function setupPWA() {
+  // index.html keeps an event that arrived before this script ran.
+  if (window.__installPromptEvent) usePrompt(window.__installPromptEvent);
   window.addEventListener('beforeinstallprompt', e => {
     // Keep the browser's own mini-bar away; we show our banner instead.
     e.preventDefault();
-    deferredPrompt = e;
-    pwa.method = 'prompt';
-    maybeShowBanner();
+    usePrompt(e);
   });
 
   window.addEventListener('appinstalled', () => {
     deferredPrompt = null;
+    pwa.canPrompt = false;
     pwa.installed = true;
     pwa.bannerOpen = false;
+    pwa.helpOpen = false;
   });
 
   if (window.matchMedia) {
@@ -43,44 +52,75 @@ export function setupPWA() {
     if (standalone.addEventListener) standalone.addEventListener('change', onChange);
   }
 
-  // iPhone and mobile browsers without the install event get instructions.
-  if (pwa.method) setTimeout(maybeShowBanner, 2500);
+  setTimeout(maybeShowBanner, 2500);
 
   if ('serviceWorker' in navigator && import.meta.env.PROD) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(e => console.warn('Service worker not registered', e));
-    });
+    let register = () => navigator.serviceWorker.register('./sw.js')
+      .catch(e => console.warn('Service worker not registered', e));
+    if (document.readyState === 'complete') register();
+    else window.addEventListener('load', register);
   }
 }
 
-/** True when the app can be offered for installation here. */
+function usePrompt(e) {
+  deferredPrompt = e;
+  pwa.canPrompt = true;
+  promptWaiters.forEach(resolve => resolve(true));
+  promptWaiters = [];
+  maybeShowBanner();
+}
+
+/** True while StreetData isn't installed, so the install button is offered. */
 export function canInstall() {
-  return !pwa.installed && Boolean(pwa.method);
+  return !pwa.installed;
 }
 
 /**
- * Opens the browser's install dialog when there is one. Resolves to true when
- * the person accepted; for iPhone and other browsers it opens the banner with
- * the steps.
+ * The «Instalar» button. Opens the browser's install dialog when there is one
+ * and resolves to true when the person accepted. Everywhere else it opens the
+ * steps for this browser.
  */
 export function install() {
-  if (!deferredPrompt) {
-    pwa.bannerOpen = true;
-    return Promise.resolve(false);
-  }
-  let prompt = deferredPrompt;
-  deferredPrompt = null;
-  prompt.prompt();
-  return prompt.userChoice.then(choice => {
-    let accepted = choice && choice.outcome === 'accepted';
-    if (accepted) {
-      pwa.bannerOpen = false;
-    } else {
-      // The event can only be used once; the browser fires a new one later.
-      pwa.method = detectManualMethod();
+  return waitForPrompt().then(available => {
+    if (!available) {
+      pwa.helpOpen = true;
+      return false;
     }
-    return accepted;
+    let prompt = deferredPrompt;
+    deferredPrompt = null;
+    pwa.canPrompt = false;
+    return Promise.resolve(prompt.prompt()).then(() => prompt.userChoice).then(choice => {
+      let accepted = choice && choice.outcome === 'accepted';
+      if (accepted) pwa.bannerOpen = false;
+      // A refused dialog can't be reopened until the browser fires the event
+      // again; until then the button shows the steps.
+      return accepted;
+    }, () => {
+      pwa.helpOpen = true;
+      return false;
+    });
   });
+}
+
+function waitForPrompt() {
+  if (deferredPrompt) return Promise.resolve(true);
+  // Only Chromium browsers can still offer the dialog.
+  if (!['android', 'desktop-chromium', 'samsung'].includes(pwa.platform)) return Promise.resolve(false);
+  return new Promise(resolve => {
+    promptWaiters.push(resolve);
+    setTimeout(() => {
+      promptWaiters = promptWaiters.filter(r => r !== resolve);
+      resolve(false);
+    }, PROMPT_WAIT_MS);
+  });
+}
+
+export function openInstallHelp() {
+  pwa.helpOpen = true;
+}
+
+export function closeInstallHelp() {
+  pwa.helpOpen = false;
 }
 
 export function dismissBanner() {
@@ -116,15 +156,15 @@ function isStandalone() {
     window.matchMedia('(display-mode: window-controls-overlay)').matches;
 }
 
-function detectManualMethod() {
-  let ua = navigator.userAgent || '';
-  let iOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  if (iOS) return 'ios';
-  // Safari 17+ on a Mac adds web apps to the Dock from the File menu.
-  if (/Macintosh/.test(ua) && /Version\/(1[7-9]|[2-9]\d)\./.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Edg|Firefox/.test(ua)) return 'mac-safari';
-  // Other phones (Firefox, Samsung Internet...) install from the browser menu.
-  // Desktop browsers without the install event (Firefox, older Safari) can't
-  // install web apps the same way, so they get no message.
-  if (/Android|Mobile/i.test(ua)) return 'manual';
-  return '';
+export function detectPlatform(ua = navigator.userAgent || '', touchPoints = navigator.maxTouchPoints || 0) {
+  // Instagram, Facebook, TikTok, LinkedIn... open links in their own browser,
+  // which can't install apps.
+  if (/FBAN|FBAV|FB_IAB|Instagram|Line\/|TikTok|musical_ly|LinkedInApp|Snapchat|; wv\)/i.test(ua)) return 'in-app';
+  let iOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && touchPoints > 1);
+  if (iOS) return /CriOS|FxiOS|EdgiOS|OPiOS/.test(ua) ? 'ios-other' : 'ios-safari';
+  if (/SamsungBrowser/i.test(ua)) return 'samsung';
+  if (/Android/i.test(ua)) return /Firefox/i.test(ua) ? 'firefox-android' : 'android';
+  if (/Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Edg|Firefox/.test(ua)) return 'mac-safari';
+  if (/Chrome|Chromium|Edg\//.test(ua) && !/OPR|Firefox/.test(ua)) return 'desktop-chromium';
+  return 'desktop-other';
 }
