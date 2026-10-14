@@ -20,6 +20,12 @@ export default class Query {
   static Road = 'way[highway]';
 
   /**
+   * Land plots as far as OpenStreetMap has them: building footprints and land
+   * use areas. Real cadastral parcels are usually not in OpenStreetMap.
+   */
+  static Parcels = 'way[~"^(building|landuse)$"~"."]';
+
+  /**
    * Reduced set of roads
    */
   static RoadBasic = 'way[highway~"^(motorway|primary|secondary|tertiary)|residential"]';
