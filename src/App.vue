@@ -2,17 +2,26 @@
   <find-place v-if='!placeFound' @loaded='onGridLoaded'></find-place>
   <div id="app">
     <div v-if='placeFound'>
-      <div class='controls'>
-        <a href="#" class='print-button' @click.prevent='toggleSettings'>Personalizar...</a>
-        <a href="#" class='try-another' @click.prevent='startOver'>Probar otra ciudad</a>
-      </div>
-      <div class='layer-toggles'>
-        <a href='#' class='layer-toggle streets-toggle' :class='{active: showStreets}' @click.prevent='toggleStreets'>Calles</a>
-        <a href='#' class='layer-toggle parcels-toggle' :class='{active: showParcels, loading: parcelsStatus === "loading"}' @click.prevent='toggleParcels'>
-          <span v-if='parcelsStatus === "loading"'>Cargando parcelas...</span>
-          <span v-else>Parcelas</span>
-        </a>
-      </div>
+      <nav class='menu-bar' aria-label='Menú'>
+        <div class='menu-group'>
+          <a href='#' class='menu-item layer-toggle streets-toggle' :class='{active: showStreets}' @click.prevent='toggleStreets'>Calles</a>
+          <a href='#' class='menu-item layer-toggle parcels-toggle' :class='{active: showParcels, loading: parcelsStatus === "loading"}' @click.prevent='toggleParcels'>
+            <span v-if='parcelsStatus === "loading"'>Cargando...</span>
+            <span v-else>Parcelas</span>
+          </a>
+        </div>
+        <div class='menu-separator'></div>
+        <div class='menu-group'>
+          <a href='#' class='menu-item' title='Guarda la pantalla actual como imagen' @click.prevent='toPNGFile'>PNG</a>
+          <a href='#' class='menu-item' title='Guarda la pantalla actual como imagen vectorial' @click.prevent='toSVGFile'>SVG</a>
+          <a href='#' class='menu-item' title='Guarda las calles visibles (con nombres) y las parcelas. Se abre en Google Earth y Google My Maps.' @click.prevent='toKMLFile'>KML</a>
+        </div>
+        <div class='menu-separator'></div>
+        <div class='menu-group'>
+          <a href='#' class='menu-item settings-toggle' :class='{active: showSettings}' @click.prevent='toggleSettings'>Personalizar</a>
+          <a href='#' class='menu-item try-another' @click.prevent='startOver'>Otra ciudad</a>
+        </div>
+      </nav>
       <div v-if='showParcels && (parcelsStatus === "error" || parcelsStatus === "empty")' class='layer-notice'>
         <span v-if='parcelsStatus === "error"'>No se pudieron cargar las parcelas. <a href='#' @click.prevent='retryParcels'>Reintentar</a></span>
         <span v-else>No hay parcelas ni edificios mapeados en esta zona.</span>
@@ -45,33 +54,6 @@
             <span v-else-if='streetNamesStatus === "error"'>No se pudieron cargar los nombres de calles. <a href='#' @click.prevent='loadStreetNames'>Reintentar</a></span>
             <span v-else-if='streetNamesStatus === "empty"'>No se encontraron calles con nombre en esta zona.</span>
             <span v-else>Acerca el mapa para ver más nombres.</span>
-          </span>
-        </div>
-
-        <h3>Exportar</h3>
-        <div class='row'>
-          <a href='#'  @click.prevent='toPNGFile' class='col'>Como imagen (.png)</a> 
-          <span class='col c-2'>
-            Guarda la pantalla actual como imagen.
-          </span>
-        </div>
-        
-        <div class='row'>
-          <a href='#'  @click.prevent='toSVGFile' class='col'>Como vector (.svg)</a> 
-          <span class='col c-2'>
-            Guarda la pantalla actual como imagen vectorial.
-          </span>
-        </div>
-        <div class='row'>
-          <a href='#'  @click.prevent='toKMLFile' class='col'>Como mapa (.kml)</a> 
-          <span class='col c-2'>
-            Guarda las calles visibles (con nombres) y las parcelas. Se abre en Google Earth y Google My Maps.
-          </span>
-        </div>
-        <div v-if='false' class='row'>
-          <a href='#' @click.prevent='toProtobuf' class='col'>Como archivo .PBF</a> 
-          <span class='col c-2'>
-            Guarda los datos actuales como mensaje protobuf. Solo para desarrolladores.
           </span>
         </div>
       </div>
@@ -406,89 +388,78 @@ function toRGBA(c) {
   border-style: solid;
 }
 
-.controls {
+// One horizontal bar with every action: layers, export, settings, new city.
+.menu-bar {
   display: flex;
-  flex-direction: row;
-  gap: 8px;
-  width: desktop-controls-width;
-
-  a {
-    flex: 1;
-    height: 44px;
-    margin: 0;
-    border: 0;
-    border-radius: 999px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 14px;
-    font-weight: 600;
-    text-decoration: none;
-    transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
-    &:active {
-      transform: scale(0.98);
-    }
-  }
-
-  a.print-button {
-    color: white;
-    background: brand-gradient;
-    box-shadow: brand-shadow;
-    &:hover {
-      background: brand-gradient-hover;
-      box-shadow: 0 8px 26px rgba(74, 144, 255, 0.5);
-    }
-  }
-
-  a.try-another {
-    color: strong-text;
-    background: card-background;
-    box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
-    &:hover {
-      background: white;
-    }
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100vw - 24px);
+  padding: 5px;
+  box-sizing: border-box;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: card-background;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  border-radius: 999px;
+  box-shadow: card-shadow;
+  &::-webkit-scrollbar {
+    display: none;
   }
 }
 
-.layer-toggles {
+.menu-group {
   display: flex;
-  gap: 6px;
-  margin-top: 8px;
-  padding: 4px;
-  width: desktop-controls-width;
-  box-sizing: border-box;
-  background: card-background;
-  border-radius: 999px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
+  gap: 4px;
+  flex-shrink: 0;
+}
 
-  a.layer-toggle {
-    flex: 1;
-    height: 36px;
-    border-radius: 999px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 14px;
-    font-weight: 600;
-    text-decoration: none;
-    color: muted-text;
-    transition: background 0.2s, color 0.2s;
-    &:hover {
-      color: strong-text;
-      background: soft-background;
-    }
-    &.active {
-      color: white;
-      background: brand-gradient;
-      box-shadow: brand-shadow;
-    }
-    &.parcels-toggle.active {
-      background: linear-gradient(90deg, #f97316 0%, #ea580c 100%);
-      box-shadow: 0 6px 20px rgba(234, 88, 12, 0.35);
-    }
-    &.loading {
-      opacity: 0.85;
-    }
+.menu-separator {
+  flex-shrink: 0;
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: border-color;
+}
+
+.menu-bar a.menu-item {
+  flex-shrink: 0;
+  height: 36px;
+  margin: 0;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  color: muted-text;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.1s;
+  &:hover {
+    color: strong-text;
+    background: soft-background;
+  }
+  &:active {
+    transform: scale(0.97);
+  }
+  &.active {
+    color: white;
+    background: brand-gradient;
+    box-shadow: brand-shadow;
+  }
+  &.parcels-toggle.active {
+    background: linear-gradient(90deg, #f97316 0%, #ea580c 100%);
+    box-shadow: 0 6px 20px rgba(234, 88, 12, 0.35);
+  }
+  &.loading {
+    opacity: 0.85;
+  }
+  &.try-another {
+    color: strong-text;
   }
 }
 
@@ -671,24 +642,6 @@ a:focus-visible {
     margin-top: 0;
   }
 
-  // Export actions look like buttons.
-  .row a.col {
-    flex: 0 0 132px;
-    justify-content: center;
-    margin: 0 12px 0 0;
-    padding: 9px 10px;
-    font-size: 13px;
-    font-weight: 600;
-    color: strong-text;
-    background: soft-background;
-    border: 0;
-    border-radius: 10px;
-    transition: background 0.2s, color 0.2s;
-    &:hover {
-      color: white;
-      background: brand-gradient;
-    }
-  }
   .row .c-2 {
     font-size: 13px;
     color: muted-text;
@@ -770,7 +723,7 @@ a:focus-visible {
     margin: 8px;
 
     .preview-actions,.error,
-    .controls, .print-window, .layer-toggles, .layer-notice {
+    .menu-bar, .print-window, .layer-notice {
       width: 100%;
     }
     .loading-container {
@@ -782,8 +735,19 @@ a:focus-visible {
       max-height: calc(100vh - 128px);
       padding: 16px;
     }
-    .print-window .row a.col {
-      flex-basis: 112px;
+    // On phones the bar wraps instead of hiding buttons off-screen.
+    .menu-bar {
+      flex-wrap: wrap;
+      justify-content: center;
+      row-gap: 4px;
+      border-radius: 22px;
+    }
+    .menu-separator {
+      display: none;
+    }
+    .menu-bar a.menu-item {
+      padding: 0 12px;
+      font-size: 13px;
     }
 
   }
