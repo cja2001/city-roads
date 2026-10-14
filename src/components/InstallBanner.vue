@@ -4,27 +4,14 @@
       <brand-logo :compact='true' :size='44' tone='light' class='install-logo'/>
       <div class='install-body'>
         <h2 id='install-title' class='install-title'>Instala StreetData</h2>
-        <p id='install-text' class='install-text' v-if='pwa.method === "prompt"'>
+        <p id='install-text' class='install-text'>
           Ábrela como una app, con su propio icono y ventana, sin buscarla en el navegador.
         </p>
-        <p id='install-text' class='install-text' v-else-if='pwa.method === "ios"'>
-          Toca <share-icon :size='15' class='inline-icon' aria-label='Compartir'/> <strong>Compartir</strong> y luego
-          <square-plus :size='15' class='inline-icon' aria-hidden='true'/> <strong>Añadir a pantalla de inicio</strong>.
-        </p>
-        <p id='install-text' class='install-text' v-else-if='pwa.method === "mac-safari"'>
-          En el menú <strong>Archivo</strong>, elige <strong>Añadir al Dock</strong>.
-        </p>
-        <p id='install-text' class='install-text' v-else>
-          Abre el menú del navegador <ellipsis-vertical :size='15' class='inline-icon' aria-label='menú'/> y elige
-          <strong>Instalar app</strong> o <strong>Añadir a pantalla de inicio</strong>.
-        </p>
         <div class='install-actions'>
-          <button v-if='pwa.method === "prompt"' type='button' class='btn btn-primary btn-sm' @click='onInstall'>
-            <monitor-down :size='16'/>Instalar
+          <button type='button' class='btn btn-primary btn-sm' :disabled='busy' @click='onInstall'>
+            <loader-circle v-if='busy' :size='16' class='spin'/><monitor-down v-else :size='16'/>Instalar
           </button>
-          <button type='button' class='btn btn-ghost btn-sm' @click='dismissBanner'>
-            {{pwa.method === 'prompt' ? 'Ahora no' : 'Entendido'}}
-          </button>
+          <button type='button' class='btn btn-ghost btn-sm' @click='dismissBanner'>Ahora no</button>
         </div>
       </div>
       <button type='button' class='icon-btn install-close' aria-label='Cerrar aviso de instalación' @click='dismissBanner'>
@@ -35,29 +22,35 @@
 </template>
 
 <script>
-import {MonitorDown, Share, SquarePlus, EllipsisVertical, X} from 'lucide-vue-next';
+import {MonitorDown, LoaderCircle, X} from 'lucide-vue-next';
 import BrandLogo from './BrandLogo.vue';
 import {pwa, install, dismissBanner, canInstall} from '../lib/pwa.js';
 import {notify} from '../lib/toasts.js';
 
 /**
  * Invitation to install StreetData as an app. Only shown while it isn't
- * installed; "Ahora no" hides it for a week.
+ * installed; "Ahora no" hides it for a week. «Instalar» always works: it opens
+ * the browser's install dialog, or the steps where there is none.
  */
 export default {
   name: 'InstallBanner',
-  components: {BrandLogo, MonitorDown, ShareIcon: Share, SquarePlus, EllipsisVertical, XIcon: X},
+  components: {BrandLogo, MonitorDown, LoaderCircle, XIcon: X},
   setup() {
     return {pwa, dismissBanner};
   },
+  data() {
+    return {busy: false};
+  },
   computed: {
     open() {
-      return pwa.bannerOpen && canInstall();
+      return pwa.bannerOpen && !pwa.helpOpen && canInstall();
     }
   },
   methods: {
     onInstall() {
+      this.busy = true;
       install().then(accepted => {
+        this.busy = false;
         if (accepted) notify('StreetData se está instalando', {kind: 'success', detail: 'La encontrarás junto a tus otras apps.'});
       });
     }
@@ -104,11 +97,6 @@ export default {
 .install-text strong {
   color: var(--text);
   font-weight: 600;
-}
-.inline-icon {
-  display: inline-block;
-  vertical-align: -2px;
-  color: var(--text);
 }
 .install-actions {
   display: flex;
