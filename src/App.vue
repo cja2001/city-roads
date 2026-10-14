@@ -53,6 +53,7 @@
     v-if='baseMapAttribution'> · {{baseMapAttribution}}</span></div>
 
   <toast-host/>
+  <install-banner/>
   <help-dialog v-if='helpOpen' @close='helpOpen = false'/>
   <confirm-dialog v-if='confirm' :title='confirm.title' :message='confirm.message' :confirm-label='confirm.label'
     @confirm='runConfirmed' @cancel='confirm = null'/>
@@ -71,6 +72,7 @@ import MapLegend from './components/MapLegend.vue';
 import MapStatus from './components/MapStatus.vue';
 import EditableLabel from './components/EditableLabel.vue';
 import ToastHost from './components/ToastHost.vue';
+import InstallBanner from './components/InstallBanner.vue';
 import HelpDialog from './components/HelpDialog.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
 import PngPreviewDialog from './components/PngPreviewDialog.vue';
@@ -96,7 +98,7 @@ export default {
   name: 'App',
   components: {
     TopBar, ExtractPanel, LayersPanel, EmptyState, MapControls, MapLegend, MapStatus, EditableLabel,
-    ToastHost, HelpDialog, ConfirmDialog, PngPreviewDialog, LoaderCircle
+    ToastHost, InstallBanner, HelpDialog, ConfirmDialog, PngPreviewDialog, LoaderCircle
   },
   data() {
     let theme = getInitialTheme();

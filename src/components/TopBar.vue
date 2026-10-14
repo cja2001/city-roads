@@ -42,6 +42,10 @@
       </div>
 
       <span class='topbar-divider' aria-hidden='true'></span>
+      <button v-if='installable' type='button' class='topbar-btn icon-only' aria-label='Instalar StreetData como app'
+        data-tip='Instalar app' @click='onInstall'>
+        <monitor-down :size='18'/>
+      </button>
       <button type='button' class='topbar-btn icon-only' :aria-label='theme === "dark" ? "Cambiar a modo claro" : "Cambiar a modo oscuro"'
         :data-tip='theme === "dark" ? "Modo claro" : "Modo oscuro"' @click='$emit("toggle-theme")'>
         <sun-icon v-if='theme === "dark"' :size='18'/>
@@ -55,15 +59,17 @@
 </template>
 
 <script>
-import {ScanSearch, Layers, Download, ChevronDown, Image, PenTool, Globe, Sun, Moon, CircleHelp} from 'lucide-vue-next';
+import {ScanSearch, Layers, Download, ChevronDown, Image, PenTool, Globe, Sun, Moon, CircleHelp, MonitorDown} from 'lucide-vue-next';
 import BrandLogo from './BrandLogo.vue';
 import SourcePicker from './SourcePicker.vue';
+import {canInstall, install} from '../lib/pwa.js';
+import {notify} from '../lib/toasts.js';
 
 export default {
   name: 'TopBar',
   components: {
     BrandLogo, SourcePicker, ScanSearch, LayersIcon: Layers, DownloadIcon: Download, ChevronDown,
-    ImageIcon: Image, PenTool, GlobeIcon: Globe, SunIcon: Sun, MoonIcon: Moon, CircleHelp
+    ImageIcon: Image, PenTool, GlobeIcon: Globe, SunIcon: Sun, MoonIcon: Moon, CircleHelp, MonitorDown
   },
   props: {
     theme: String,
@@ -75,6 +81,11 @@ export default {
   emits: ['toggle-theme', 'open-help', 'set-source', 'toggle-extract', 'toggle-layers', 'export', 'new-extraction'],
   data() {
     return {menuOpen: false};
+  },
+  computed: {
+    installable() {
+      return canInstall();
+    }
   },
   watch: {
     menuOpen(open) {
@@ -93,6 +104,11 @@ export default {
     document.removeEventListener('mousedown', this.onOutside, true);
   },
   methods: {
+    onInstall() {
+      install().then(accepted => {
+        if (accepted) notify('StreetData se está instalando', {kind: 'success', detail: 'La encontrarás junto a tus otras apps.'});
+      });
+    },
     openMenu() {
       this.menuOpen = true;
     },

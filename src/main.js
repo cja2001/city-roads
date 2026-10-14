@@ -8,10 +8,12 @@ import './styles/base.css';
 import App from './App.vue';
 import NoWebGL from './NoWebGL.vue';
 import Query from './lib/Query.js';
+import {setupPWA} from './lib/pwa.js';
 
 // const wgl = require('w-gl');
 
 window.addEventListener('error', logError);
+setupPWA();
 
 // expose the console API
 window.requireModule = d3Require;

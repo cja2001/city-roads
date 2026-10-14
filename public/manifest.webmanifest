@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "StreetData · Geospatial Data Extractor",
+  "short_name": "StreetData",
+  "description": "Extrae, visualiza y exporta las calles y parcelas de cualquier lugar en KML, PNG y SVG. Cada calle cuenta una historia.",
+  "lang": "es",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0B1424",
+  "theme_color": "#0B1424",
+  "categories": ["navigation", "utilities", "productivity"],
+  "icons": [
+    {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+    {"src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}
+  ]
+}

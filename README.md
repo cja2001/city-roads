@@ -17,6 +17,10 @@ original del proyecto se conserva más abajo.
 Haz clic en una calle o parcela para ver sus atributos en «Capas y datos». El modo claro/oscuro está en la
 barra superior y la ayuda en el botón «?».
 
+StreetData se puede instalar como app (PWA): Chrome, Edge y Android muestran un aviso con el botón «Instalar»,
+y en iPhone/iPad el aviso explica cómo usar Compartir → «Añadir a pantalla de inicio». Instalada, la app abre
+sin conexión; las calles, parcelas, búsquedas y teselas siguen necesitando internet.
+
 ## Estructura
 
 - `src/App.vue`: distribución de la aplicación y flujo de extracción.
@@ -25,6 +29,7 @@ barra superior y la ayuda en el botón «?».
 - `src/lib/MapController.js`: escena WebGL y capas (mapa base, calles, parcelas, nombres, selección) y exportaciones.
 - `src/lib/kmlExport.js`, `src/lib/saveFile.js`, `src/lib/geometry.js`: exportación KML/PNG/SVG y recorte.
 - `src/styles/tokens.css`: colores y medidas del sistema de diseño (modo claro y oscuro).
+- `src/lib/pwa.js`, `public/sw.js`, `public/manifest.webmanifest`: app instalable y aviso de instalación.
 - `api/overture.mjs`: función de Vercel que lee Overture Maps.
 
 ## Ejecutar y desplegar
