@@ -1,0 +1,95 @@
+/*
+ * StreetData design tokens. Every color of the interface comes from here, so
+ * light and dark mode only swap these values.
+ */
+:root {
+  --sd-navy: #0B1424;
+  --sd-navy-surface: #162C46;
+  --sd-cyan: #4DE1D2;
+  --sd-white: #FFFFFF;
+  --sd-gray-100: #F1F5F9;
+  --sd-gray-400: #94A3B8;
+
+  --font-ui: 'Inter', system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --topbar-height: 56px;
+  --panel-width: 340px;
+  --layers-width: 320px;
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --transition: 150ms ease-out;
+
+  /* The top bar is always navy: it carries the brand in both modes. */
+  --topbar-bg: var(--sd-navy);
+  --topbar-border: #1E3048;
+  --topbar-text: var(--sd-white);
+  --topbar-muted: var(--sd-gray-400);
+  --topbar-hover: rgba(255, 255, 255, 0.08);
+
+  --accent: var(--sd-cyan);
+  --accent-hover: #6FE9DC;
+  --on-accent: var(--sd-navy);
+  --focus-ring: 0 0 0 2px var(--surface), 0 0 0 4px var(--sd-cyan);
+
+  --danger: #DC2626;
+  --danger-soft: rgba(220, 38, 38, 0.1);
+  --warning: #B45309;
+  --warning-soft: rgba(217, 119, 6, 0.12);
+  --success: #0F766E;
+}
+
+/* Light mode (default) */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+  --app-bg: var(--sd-gray-100);
+  --surface: var(--sd-white);
+  --surface-2: var(--sd-gray-100);
+  --surface-3: #E2E8F0;
+  --border: #DCE4EC;
+  --text: var(--sd-navy);
+  /* #94A3B8 is too light for body text on white (2.6:1), so secondary text
+     uses a darker slate in light mode and #94A3B8 only for placeholders. */
+  --text-muted: #5B6B80;
+  --text-faint: var(--sd-gray-400);
+  --accent-text: #0B7F76;
+  --accent-soft: rgba(77, 225, 210, 0.16);
+  --accent-border: rgba(11, 127, 118, 0.45);
+  --shadow: 0 1px 2px rgba(11, 20, 36, 0.06), 0 4px 12px rgba(11, 20, 36, 0.06);
+  --shadow-lg: 0 12px 32px rgba(11, 20, 36, 0.16);
+  --map-chrome: rgba(255, 255, 255, 0.92);
+  --scrim: rgba(11, 20, 36, 0.45);
+  --success-text: #0F766E;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --app-bg: var(--sd-navy);
+  --surface: #0F1C30;
+  --surface-2: var(--sd-navy-surface);
+  --surface-3: #1D3958;
+  --border: #314258;
+  --text: #F1F5F9;
+  --text-muted: var(--sd-gray-400);
+  --text-faint: #7488A2;
+  --accent-text: var(--sd-cyan);
+  --accent-soft: rgba(77, 225, 210, 0.12);
+  --accent-border: rgba(77, 225, 210, 0.5);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 12px rgba(0, 0, 0, 0.25);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --map-chrome: rgba(15, 28, 48, 0.92);
+  --scrim: rgba(0, 0, 0, 0.55);
+  --danger-soft: rgba(248, 113, 113, 0.14);
+  --danger: #F87171;
+  --warning: #FBBF24;
+  --warning-soft: rgba(251, 191, 36, 0.12);
+  --success-text: var(--sd-cyan);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --transition: 0ms;
+  }
+}

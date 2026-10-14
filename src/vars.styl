@@ -1,22 +1,17 @@
-small-screen = 450px;
-desktop-controls-width = 442px;
-labels-font = 'Roboto', sans-serif;
+// Stylus aliases of the design tokens in styles/tokens.css, for the older
+// components that still use stylus variables.
+small-screen = 720px;
+desktop-controls-width = 340px;
+labels-font = 'Roboto', 'Inter', sans-serif;
 
-highlight-color = #2563eb;
-primary-text = rgb(33, 33, 33);
-secondary-color = rgba(0,0,0,.54);
-emphasis-background = white;
-background-color = #F7F2E8;
-border-color = #E5E7EB;
+highlight-color = var(--accent-text);
+primary-text = var(--text);
+secondary-color = var(--text-muted);
+emphasis-background = var(--surface);
+background-color = var(--app-bg);
+border-color = var(--border);
 
-// Shared look with the other municipal projects (Inter, blue gradient, soft cards).
-ui-font = 'Inter', system-ui, 'Segoe UI', sans-serif;
-brand-gradient = linear-gradient(90deg, #3a7fe8 0%, #5b6ef5 100%);
-brand-gradient-hover = linear-gradient(90deg, #4a8ff8 0%, #6b7ef8 100%);
-brand-shadow = 0 6px 20px rgba(74, 144, 255, 0.35);
-card-background = rgba(255, 255, 255, 0.94);
-card-shadow = 0 18px 48px rgba(15, 23, 42, 0.16), 0 2px 6px rgba(15, 23, 42, 0.06);
-card-radius = 18px;
-muted-text = #64748b;
-strong-text = #0f172a;
-soft-background = #F1F5F9;
+ui-font = var(--font-ui);
+muted-text = var(--text-muted);
+strong-text = var(--text);
+soft-background = var(--surface-2);

@@ -19,11 +19,18 @@ export const BASE_MAPS = {
     maxZoom: 20,
     attribution: '© CARTO'
   },
+  dark: {
+    name: 'Mapa oscuro',
+    url: (z, x, y, retina) => `https://${'abcd'[(x + y) % 4]}.basemaps.cartocdn.com/rastertiles/dark_nolabels/${z}/${x}/${y}${retina ? '@2x' : ''}.png`,
+    maxZoom: 20,
+    attribution: '© CARTO'
+  },
   osm: {
     name: 'OpenStreetMap',
     url: (z, x, y) => `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
     maxZoom: 19,
-    attribution: ''
+    // The data notice already credits OpenStreetMap; tiles are theirs too.
+    attribution: 'Teselas © OpenStreetMap'
   },
   satellite: {
     name: 'Satélite',

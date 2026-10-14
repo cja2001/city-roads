@@ -3,8 +3,8 @@ import Query from './Query.js';
 import LoadOptions from './LoadOptions.js';
 import Progress from './Progress.js';
 import {findBoundaryByAreaId} from './findBoundaryByName.js';
+import config from '../config.js';
 
-const PARCEL_COLOR = 'rgba(234, 88, 12, 0.75)';
 
 /**
  * Downloads parcels (buildings, land use and plots) for the same place as the
@@ -61,7 +61,7 @@ export default class ParcelsLayer {
         this.grid = grid;
         let layer = this.layer = new GridLayer();
         layer.id = 'parcels';
-        layer.color = PARCEL_COLOR;
+        layer.color = this.color || config.getParcelsColor();
         if (!this.visible) layer.hidden = true;
         layer.setGrid(grid);
         this.scene.add(layer);

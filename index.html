@@ -9,53 +9,44 @@
 
   gtag('config', 'G-TXT6313TGG');
 </script>
-    <meta property="og:title" content="Dibuja todas las calles de cualquier ciudad" />
-    <meta property="og:image" content="https://i.imgur.com/Fbbe5a6.png" />
-    <meta property="og:description" content="Elige una ciudad y este sitio dibuja todas sus calles en pantalla." />
-    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" >
     <meta charset="utf-8">
-    <meta name="Description" content="Elige una ciudad y este sitio dibuja todas sus calles en pantalla.">
-    <meta name="keywords" content="city roads visualization, roads, graph, visualization, anvaka" />
-    <meta name="author" content="Andrei Kashcha">
-    <title>Todas las calles de una ciudad</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto&display=swap" rel="stylesheet">
-
-    <style>
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        background-color: #F7F2E8;
-        position: absolute;
-        overflow: hidden;
-        font-family: 'Inter', system-ui, 'Segoe UI', Helvetica, Arial, sans-serif;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-
-        transition-timing-function: ease-out;
-        transition-property: background-color;
-        transition-duration: 3s;
-      }
-      #canvas, body{
-        margin: 0;
-        position: absolute;
-        width: 100%;
-        height: 100%;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        right: 0;
-      }
-    </style>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>StreetData · Geospatial Data Extractor</title>
+    <meta name="description" content="StreetData extrae, visualiza y exporta las calles y parcelas de cualquier lugar desde OpenStreetMap y Overture Maps, en KML, PNG y SVG. Cada calle cuenta una historia.">
+    <meta name="keywords" content="StreetData, calles, parcelas, KML, OpenStreetMap, Overture Maps, SIG, GIS, mapa">
+    <meta name="theme-color" content="#0B1424">
+    <meta property="og:title" content="StreetData · Cada calle cuenta una historia" />
+    <meta property="og:description" content="Extrae. Analiza. Exporta. Calles y parcelas de cualquier lugar en KML, PNG y SVG." />
+    <meta property="og:image" content="https://i.imgur.com/Fbbe5a6.png" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="StreetData">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Roboto&display=swap" rel="stylesheet">
+    <script>
+      // Apply the saved light / dark mode before the first paint.
+      (function() {
+        var theme;
+        try { theme = localStorage.getItem('streetdata-theme'); } catch (e) {}
+        if (theme !== 'light' && theme !== 'dark') {
+          theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+      })();
+    </script>
   </head>
   <body>
-    <canvas id='canvas'></canvas>
+    <div id="map-stage" tabindex="0" role="application" aria-label="Mapa. Usa las flechas para moverte, + y − para acercar o alejar, y 0 para ver toda el área.">
+      <canvas id="canvas"></canvas>
+    </div>
     <div id="host"></div>
 
     <script type="module" src="/src/main.js"></script>
-</body>
-
+  </body>
 </html>

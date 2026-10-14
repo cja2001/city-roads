@@ -1,774 +1,881 @@
 <template>
-  <find-place v-if='!placeFound' @loaded='onGridLoaded'></find-place>
-  <div id="app">
-    <div v-if='placeFound' class='app-panel'>
-      <nav class='menu-bar' aria-label='Menú'>
-        <div class='menu-group'>
-          <a href='#' class='menu-item layer-toggle streets-toggle' :class='{active: showStreets}' @click.prevent='toggleStreets'>Calles</a>
-          <a href='#' class='menu-item layer-toggle parcels-toggle' :class='{active: showParcels, loading: parcelsStatus === "loading"}' @click.prevent='toggleParcels'>
-            <span v-if='parcelsStatus === "loading"'>Cargando...</span>
-            <span v-else>Parcelas</span>
-          </a>
-        </div>
-        <div class='menu-separator'></div>
-        <div class='menu-group'>
-          <a href='#' class='menu-item' title='Guarda la pantalla actual como imagen' @click.prevent='toPNGFile'>PNG</a>
-          <a href='#' class='menu-item' title='Guarda la pantalla actual como imagen vectorial' @click.prevent='toSVGFile'>SVG</a>
-          <a href='#' class='menu-item' title='Guarda las calles visibles (con nombres) y las parcelas. Se abre en Google Earth y Google My Maps.' @click.prevent='toKMLFile'>KML</a>
-        </div>
-        <div class='menu-separator'></div>
-        <div class='menu-group'>
-          <a href='#' class='menu-item settings-toggle' :class='{active: showSettings}' @click.prevent='toggleSettings'>Personalizar</a>
-          <a href='#' class='menu-item try-another' @click.prevent='startOver'>Otra ciudad</a>
-        </div>
-      </nav>
-      <div v-if='showParcels && (parcelsStatus === "error" || parcelsStatus === "empty")' class='layer-notice'>
-        <span v-if='parcelsStatus === "error"'>No se pudieron cargar las parcelas. <a href='#' @click.prevent='retryParcels'>Reintentar</a></span>
-        <span v-else>No hay parcelas ni edificios mapeados en esta zona.</span>
-      </div>
-      <div v-if='showSettings' class='print-window'>
-        <h3>Vista</h3>
-        <div class='row'>
-          <div class='col'>Colores</div>
-          <div class='col colors c-2'>
-            <div v-for='layer in layers' :key='layer.name' class='color-container'>
-              <color-picker v-model='layer.color' @change='layer.changeColor'></color-picker>
-              <div class='color-label'>{{layer.name}}</div>
-            </div>
-          </div>
-        </div>
-        <div class='row'>
-          <label class='col base-map-label' for='base-map-select'>Mapa base</label>
-          <span class='col c-2'>
-            <select id='base-map-select' class='select' v-model='baseMap' @change='changeBaseMap'>
-              <option v-for='(style, key) in baseMaps' :key='key' :value='key'>{{style.name}}</option>
-            </select>
-          </span>
-        </div>
-        <div class='row'>
-          <label class='col street-names-toggle'>
-            <input type='checkbox' v-model='showStreetNames' @change='toggleStreetNames'> Nombres de calles
-          </label>
-          <span class='col c-2 street-names-status'>
-            <span v-if='streetNamesStatus === "loading"'>Cargando nombres de calles de OpenStreetMap...</span>
-            <span v-else-if='streetNamesStatus === "error"'>No se pudieron cargar los nombres de calles. <a href='#' @click.prevent='loadStreetNames'>Reintentar</a></span>
-            <span v-else-if='streetNamesStatus === "empty"'>No se encontraron calles con nombre en esta zona.</span>
-            <span v-else>Acerca el mapa para ver más nombres.</span>
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
+  <top-bar :theme='theme' :source='source' :has-data='phase === "ready"' :extract-open='extractOpen' :layers-open='layersOpen'
+    @toggle-theme='toggleTheme' @open-help='helpOpen = true' @set-source='setSource'
+    @toggle-extract='togglePanel("extract")' @toggle-layers='togglePanel("layers")'
+    @export='exportFromMenu' @new-extraction='changeArea'/>
 
-  <editable-label v-if='placeFound' v-model='name' class='city-name' :printable='true' :style='{color: labelColorRGBA}' :overlay-manager='overlayManager'></editable-label>
-  <div v-if='placeFound && showStreetNames && (streetNamesStatus === "loading" || streetNamesStatus === "error")' class='street-names-notice'>
-    <span v-if='streetNamesStatus === "loading"'>Cargando nombres de calles...</span>
-    <span v-else>No se pudieron cargar los nombres de calles. <a href='#' @click.prevent='loadStreetNames'>Reintentar</a></span>
-  </div>
-  <div v-if='placeFound' class='license printable can-drag' :style='{color: labelColorRGBA}'>datos <a href='https://www.openstreetmap.org/about/' target="_blank" :style='{color: labelColorRGBA}'>© OpenStreetMap</a><span v-if='roadSource !== "osm"'> · <a href='https://overturemaps.org/' target="_blank" :style='{color: labelColorRGBA}'>Overture Maps</a></span><span v-if='baseMapAttribution'> · {{baseMapAttribution}}</span></div>
+  <extract-panel v-show='extractOpen' class='panel-left'
+    :place='place' :initial-query='initialQuery' :source='source' :loaded-source='loadedSource' :phase='phase'
+    :loading='loading' :error='error' :error-is-server='errorIsServer' :no-roads='noRoads' :stats='stats'
+    :layers='layers' :parcels-status='parcelsStatus' :parcels-count='parcelsCount' :names-status='namesStatus'
+    :load-parcels='loadParcels' :area='area' :drawing='drawing' :export-options='exportOptions' :map-style='mapStyle'
+    :file-name='phase === "ready" ? fileName : ""' :exporting='exporting' :resolution='resolution'
+    @close='extractOpen = false' @select-place='selectPlace' @query='saveQuery' @change-area='changeArea'
+    @draw-area='toggleDrawing' @use-view='useViewAsArea' @clear-area='clearArea' @set-source='setSource'
+    @extract='extract' @cancel='cancelExtraction' @toggle-layer='toggleLayer' @set-load-parcels='loadParcels = $event'
+    @retry-parcels='map.retryParcels()' @retry-names='map.retryStreetNames()' @set-option='setExportOption'
+    @set-map-style='applyMapStyle' @download='download'/>
+
+  <layers-panel v-if='phase === "ready"' v-show='layersOpen' class='panel-right'
+    :place-name='name' :layers='layers' :stats='stats' :loaded-source='loadedSource' :parcels-status='parcelsStatus'
+    :parcels-count='parcelsCount' :names-status='namesStatus' :named-count='namedCount' :colors='colors'
+    :title-color='titleColor' :road-width='roadWidth' :base-map='baseMap' :base-maps='baseMaps'
+    :base-map-attribution='baseMapAttribution' :feature='feature'
+    @close='layersOpen = false' @toggle-layer='toggleLayer' @set-color='setColor' @set-title-color='titleColor = $event'
+    @set-road-width='setRoadWidth' @set-base-map='setBaseMap' @clear-feature='map.clearFeature()'/>
+
+  <div v-if='narrow && (extractOpen || (layersOpen && phase === "ready"))' class='panel-scrim' @click='closePanels'></div>
+
+  <teleport to='#map-stage'>
+    <empty-state v-if='phase !== "ready"' @start='extractOpen = true'/>
+    <div v-if='phase === "loading"' class='map-loading' role='status'>
+      <loader-circle :size='16' class='spin'/> {{loading.message}}
+    </div>
+    <template v-if='phase === "ready"'>
+      <map-controls :drawing='drawing' @zoom='map.zoomBy($event)' @fit='map.fitToData()' @draw='toggleDrawing'/>
+      <div class='map-bottom-left'>
+        <map-legend :layers='layers' :colors='legendColors' :parcels-ready='parcelsStatus === "ready"'
+          :names-ready='namesStatus === "ready"' :has-area='!!area' :has-feature='!!feature'/>
+        <map-status :meters-per-pixel='view.metersPerPixel' :center='view.center' :pointer='pointer'/>
+      </div>
+      <div v-if='drawing' class='draw-surface' @pointerdown='startDraw' @pointermove='moveDraw' @pointerup='endDraw'
+        @pointercancel='cancelDraw' aria-label='Arrastra para dibujar el área de exportación'>
+        <div class='draw-hint'>Arrastra para dibujar el área · Esc para cancelar</div>
+      </div>
+    </template>
+  </teleport>
+
+  <editable-label v-if='phase === "ready"' v-model='name' class='city-name' :printable='true' :style='{color: titleColorCSS}'
+    :overlay-manager='overlayManager'></editable-label>
+  <div v-if='phase === "ready"' class='license printable can-drag' :style='{color: titleColorCSS}'>datos <a
+    href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener' :style='{color: titleColorCSS}'>© OpenStreetMap</a><span
+    v-if='loadedSource !== "osm"'> · <a href='https://overturemaps.org/' target='_blank' rel='noopener' :style='{color: titleColorCSS}'>Overture Maps</a></span><span
+    v-if='baseMapAttribution'> · {{baseMapAttribution}}</span></div>
+
+  <toast-host/>
+  <install-banner/>
+  <help-dialog v-if='helpOpen' @close='helpOpen = false'/>
+  <confirm-dialog v-if='confirm' :title='confirm.title' :message='confirm.message' :confirm-label='confirm.label'
+    @confirm='runConfirmed' @cancel='confirm = null'/>
+  <png-preview-dialog v-if='preview' :url='preview.url' :width='preview.width' :height='preview.height'
+    :file-name='preview.fileName' @close='closePreview' @download='downloadPreview'/>
 </template>
 
 <script>
-import FindPlace from './components/FindPlace.vue';
-import LoadingIcon from './components/LoadingIcon.vue';
+import {LoaderCircle} from 'lucide-vue-next';
+import TopBar from './components/TopBar.vue';
+import ExtractPanel from './components/ExtractPanel.vue';
+import LayersPanel from './components/LayersPanel.vue';
+import EmptyState from './components/EmptyState.vue';
+import MapControls from './components/MapControls.vue';
+import MapLegend from './components/MapLegend.vue';
+import MapStatus from './components/MapStatus.vue';
 import EditableLabel from './components/EditableLabel.vue';
-import ColorPicker from './components/ColorPicker.vue';
-import createScene from './lib/createScene.js';
-import GridLayer from './lib/GridLayer.js';
-import StreetNamesLayer from './lib/StreetNamesLayer.js';
-import ParcelsLayer from './lib/ParcelsLayer.js';
-import BaseMapLayer, {BASE_MAPS} from './lib/BaseMapLayer.js';
+import ToastHost from './components/ToastHost.vue';
+import InstallBanner from './components/InstallBanner.vue';
+import HelpDialog from './components/HelpDialog.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
+import PngPreviewDialog from './components/PngPreviewDialog.vue';
+import MapController from './lib/MapController.js';
+import {BASE_MAPS} from './lib/BaseMapLayer.js';
+import extractRoads, {
+  SOURCES, getSavedSource, saveSource, isServerError, restorePlaceFromUrl, savePlaceToUrl
+} from './lib/extractRoads.js';
 import appState from './lib/appState.js';
-import {getCanvas, toKML} from './lib/saveFile.js';
-import config from './config.js';
-import './lib/canvas2BlobPolyfill.js';
-import bus from './lib/bus.js';
+import Progress from './lib/Progress.js';
+import {getInitialTheme, applyTheme} from './lib/theme.js';
+import {getMapStyle, setMapStyle} from './lib/mapStyles.js';
+import {makeFileName, canvasToPNG, explainCanvasError} from './lib/saveFile.js';
+import {notify} from './lib/toasts.js';
+import {formatNumber, formatBytes} from './lib/format.js';
 import createOverlayManager from './createOverlayManager.js';
+import './lib/canvas2BlobPolyfill.js';
 import tinycolor from 'tinycolor2';
 
-class ColorLayer {
-  constructor(name, color, callback) {
-    this.name = name;
-    this.changeColor = callback;
-    this.color = color;
-  }
-}
-
-// Names shown in the color picker for the layers of the scene.
-const LAYER_NAMES = {lines: 'calles', parcels: 'parcelas'};
+const NARROW = 1024;
 
 export default {
   name: 'App',
   components: {
-    FindPlace,
-    LoadingIcon,
-    EditableLabel,
-    ColorPicker
+    TopBar, ExtractPanel, LayersPanel, EmptyState, MapControls, MapLegend, MapStatus, EditableLabel,
+    ToastHost, InstallBanner, HelpDialog, ConfirmDialog, PngPreviewDialog, LoaderCircle
   },
   data() {
+    let theme = getInitialTheme();
+    let initialQuery = appState.get('q') || '';
     return {
-      placeFound: false,
+      theme,
+      mapStyle: theme,
+      source: getSavedSource(),
+      loadedSource: 'osm',
+      initialQuery,
+      place: restorePlaceFromUrl(initialQuery) || null,
+      phase: 'idle',
+      loading: {message: '', percent: undefined, loaded: 0, still: 0},
+      error: null,
+      errorIsServer: false,
+      noRoads: false,
+      stats: null,
       name: '',
-      showSettings: false,
-      settingsOpen: false,
-      labelColor: config.getLabelColor().toRgb(),
-      backgroundColor: config.getBackgroundColor().toRgb(),
-      streetNamesColor: config.getLabelColor().toRgb(),
-      showStreetNames: true,
-      baseMaps: BASE_MAPS,
-      baseMap: BASE_MAPS[appState.get('base')] ? appState.get('base') : 'map',
-      streetNamesStatus: 'idle',
-      showStreets: true,
-      roadSource: 'osm',
-      showParcels: false,
+      layers: {streets: true, parcels: false, names: true},
+      loadParcels: false,
       parcelsStatus: 'idle',
-      layers: []
-    }
+      parcelsCount: 0,
+      namesStatus: 'idle',
+      namedCount: 0,
+      colors: null,
+      titleColor: tinycolor(getMapStyle(theme).title).toRgb(),
+      roadWidth: 1,
+      baseMaps: BASE_MAPS,
+      baseMap: BASE_MAPS[appState.get('base')] ? appState.get('base') : getMapStyle(theme).baseMap,
+      area: null,
+      drawing: false,
+      feature: null,
+      view: {metersPerPixel: 0, center: null},
+      pointer: null,
+      resolution: null,
+      exportOptions: {
+        format: 'kml',
+        kmlStreets: true,
+        kmlParcels: true,
+        baseMap: true,
+        streetNames: true,
+        title: true,
+        onlyArea: true
+      },
+      exporting: false,
+      helpOpen: false,
+      confirm: null,
+      preview: null,
+      extractOpen: true,
+      layersOpen: false,
+      narrow: window.innerWidth < NARROW
+    };
   },
   computed: {
-    labelColorRGBA() {
-      return toRGBA(this.labelColor);
+    titleColorCSS() {
+      let c = this.titleColor;
+      return `rgba(${c.r}, ${c.g}, ${c.b}, ${c.a === undefined ? 1 : c.a})`;
     },
     baseMapAttribution() {
       let style = BASE_MAPS[this.baseMap];
       return style && style.attribution;
+    },
+    legendColors() {
+      let toCSS = c => c ? tinycolor(c).toRgbString() : 'currentColor';
+      let colors = this.colors || {};
+      return {roads: toCSS(colors.roads), parcels: toCSS(colors.parcels), labels: toCSS(colors.labels)};
+    },
+    fileName() {
+      let o = this.exportOptions;
+      let onlyArea = o.onlyArea && this.area && o.format !== 'svg';
+      let parts;
+      if (o.format === 'kml') {
+        parts = [];
+        if (o.kmlStreets) parts.push('calles');
+        if (o.kmlParcels && this.parcelsStatus === 'ready') parts.push('parcelas');
+      } else {
+        parts = ['mapa'];
+      }
+      if (onlyArea) parts.push('recorte');
+      return makeFileName(this.name, parts, '.' + o.format);
     }
   },
+  watch: {
+    extractOpen: 'syncLayout',
+    layersOpen: 'syncLayout',
+    phase: 'syncLayout'
+  },
   created() {
-    bus.on('background-color', this.syncBackground);
-    bus.on('line-color', this.syncLineColor);
+    applyTheme(this.theme);
+    setMapStyle(this.mapStyle);
     this.overlayManager = createOverlayManager();
+    this.map = new MapController({
+      onStreetNamesStatus: (status, count) => {
+        this.namesStatus = status;
+        this.namedCount = count;
+      },
+      onParcelsStatus: (status, count) => {
+        let wasLoading = this.parcelsStatus === 'loading';
+        this.parcelsStatus = status;
+        this.parcelsCount = count;
+        if (wasLoading && status === 'ready') notify('Parcelas cargadas', {kind: 'success', detail: formatNumber(count) + ' elementos de OpenStreetMap'});
+        if (status === 'error') notify('No se pudieron cargar las parcelas', {kind: 'error', detail: 'Los servidores de OpenStreetMap no respondieron. Puedes reintentarlo desde el paso 2.'});
+      },
+      onTransform: view => {
+        this.view = view;
+        let canvas = document.querySelector('#canvas');
+        this.resolution = {width: canvas.width, height: canvas.height};
+      },
+      onPointer: lonLat => {
+        this.pointer = lonLat;
+      },
+      onFeature: feature => {
+        this.feature = feature;
+        if (feature && !this.layersOpen) this.openPanel('layers');
+      }
+    });
+  },
+  mounted() {
+    window.addEventListener('resize', this.onWindowResize);
+    document.addEventListener('keydown', this.onKeyDown);
+    let stage = document.querySelector('#map-stage');
+    stage.addEventListener('keydown', this.onMapKey);
+    stage.addEventListener('mouseleave', this.onMapLeave);
+    // w-gl and the overlay canvases follow window resizes; the map also
+    // changes size when a panel opens or closes.
+    if (window.ResizeObserver) {
+      this.resizeObserver = new ResizeObserver(() => window.dispatchEvent(new Event('resize')));
+      this.resizeObserver.observe(stage);
+    }
+    this.syncLayout();
+    if (this.place && appState.get('auto')) this.extract();
   },
   beforeUnmount() {
-    debugger;
+    window.removeEventListener('resize', this.onWindowResize);
+    document.removeEventListener('keydown', this.onKeyDown);
+    if (this.resizeObserver) this.resizeObserver.disconnect();
     this.overlayManager.dispose();
-    this.dispose();
-    bus.off('background-color', this.syncBackground);
-    bus.off('line-color', this.syncLineColor);
+    this.map.dispose();
   },
   methods: {
-    dispose() {
-      this.grid = null;
-      this.roadsLayer = null;
-      if (this.parcels) {
-        this.parcels.dispose();
-        this.parcels = null;
+    // Layout ---------------------------------------------------------------
+    syncLayout() {
+      let body = document.body.classList;
+      body.toggle('extract-open', this.extractOpen);
+      body.toggle('layers-open', this.layersOpen && this.phase === 'ready');
+    },
+    onWindowResize() {
+      let narrow = window.innerWidth < NARROW;
+      if (narrow && !this.narrow && this.extractOpen && this.layersOpen) this.layersOpen = false;
+      this.narrow = narrow;
+    },
+    openPanel(which) {
+      if (which === 'extract') this.extractOpen = true;
+      else this.layersOpen = true;
+      // On small screens panels cover the map, so only one is open at a time.
+      if (this.narrow) {
+        if (which === 'extract') this.layersOpen = false;
+        else this.extractOpen = false;
       }
-      if (this.baseMapLayer) {
-        this.baseMapLayer.dispose();
-        this.baseMapLayer = null;
-      }
-      if (this.streetNames) {
-        this.streetNames.dispose();
-        this.streetNames = null;
-      }
-      if (this.scene) {
-        this.scene.dispose();
-        window.scene = null;
+    },
+    togglePanel(which) {
+      let open = which === 'extract' ? this.extractOpen : this.layersOpen;
+      if (open) {
+        if (which === 'extract') this.extractOpen = false;
+        else this.layersOpen = false;
+      } else {
+        this.openPanel(which);
       }
     },
-    toggleSettings() {
-      this.showSettings = !this.showSettings;
-    },
-    onGridLoaded(grid) {
-      if (grid.isArea) {
-        appState.set('areaId', grid.id);
-        appState.unset('osm_id');
-        appState.unset('bbox');
-      } else if (grid.bboxString) {
-        appState.unset('areaId');
-        appState.set('osm_id', grid.id);
-        appState.set('bbox', grid.bboxString);
-      }
-      this.placeFound = true;
-      this.roadSource = grid.queryBounds && grid.queryBounds.source || 'osm';
-      this.name = grid.name.split(',')[0];
-      let canvas = getCanvas();
-      canvas.style.visibility = 'visible';
-
-      this.scene = createScene(canvas);
-      this.scene.on('layer-added', this.updateLayers);
-      this.scene.on('layer-removed', this.updateLayers);
-
-      window.scene = this.scene;
-
-      let gridLayer = new GridLayer();
-      gridLayer.id = 'lines';
-      gridLayer.setGrid(grid);
-      this.scene.add(gridLayer)
-      this.grid = grid;
-      this.roadsLayer = gridLayer;
-      this.showStreets = true;
-      this.showParcels = false;
-      this.parcelsStatus = 'idle';
-      this.parcels = new ParcelsLayer(this.scene, grid, gridLayer, status => this.parcelsStatus = status);
-
-      this.baseMapLayer = new BaseMapLayer(this.scene, grid);
-      this.baseMapLayer.setStyle(this.baseMap);
-
-      this.streetNames = new StreetNamesLayer(this.scene, grid, {
-        color: this.streetNamesColor,
-        onStatus: status => this.streetNamesStatus = status
-      });
-      if (!this.showStreetNames) this.streetNames.hide();
-      this.loadStreetNames();
+    closePanels() {
+      this.extractOpen = false;
+      this.layersOpen = false;
     },
 
-    loadStreetNames() {
-      if (this.streetNames) this.streetNames.load();
+    // Theme ----------------------------------------------------------------
+    toggleTheme() {
+      this.theme = this.theme === 'dark' ? 'light' : 'dark';
+      applyTheme(this.theme);
+      this.applyMapStyle(this.theme);
+    },
+    applyMapStyle(name) {
+      this.mapStyle = name;
+      setMapStyle(name);
+      let style = getMapStyle(name);
+      this.titleColor = tinycolor(style.title).toRgb();
+      if (this.baseMap === 'map' || this.baseMap === 'dark') this.setBaseMap(style.baseMap);
+      if (!this.map.loaded) return;
+      this.map.setColor('background', style.background);
+      this.map.setColor('roads', style.roads);
+      this.map.setColor('parcels', style.parcels);
+      this.map.setColor('labels', style.labels);
+      this.colors = this.map.getColors();
     },
 
-    changeBaseMap() {
-      if (this.baseMap === 'map') appState.unset('base');
-      else appState.set('base', this.baseMap);
-      if (this.baseMapLayer) this.baseMapLayer.setStyle(this.baseMap);
+    // Extraction -----------------------------------------------------------
+    setSource(source) {
+      this.source = source;
+      saveSource(source);
     },
-
-    toggleStreetNames() {
-      if (!this.streetNames) return;
-      if (this.showStreetNames && this.showStreets) this.streetNames.show();
-      else this.streetNames.hide();
+    saveQuery(query) {
+      appState.set('q', query);
     },
-
-    toggleStreets() {
-      this.showStreets = !this.showStreets;
-      if (this.roadsLayer) {
-        if (this.showStreets) this.roadsLayer.show();
-        else this.roadsLayer.hide();
-      }
-      this.toggleStreetNames();
-      if (this.scene) this.scene.render();
-    },
-
-    toggleParcels() {
-      if (!this.parcels) return;
-      this.showParcels = !this.showParcels;
-      if (this.showParcels) this.parcels.show();
-      else this.parcels.hide();
-      if (this.scene) this.scene.render();
-    },
-
-    retryParcels() {
-      if (this.parcels) this.parcels.load();
-    },
-
-    startOver() {
-      appState.unset('areaId');
+    selectPlace(place) {
+      this.place = place;
+      this.error = null;
+      this.noRoads = false;
       appState.unsetPlace();
-      appState.unset('q');
-      appState.enableCache();
-
-      this.dispose();
-      this.placeFound = false;
-      this.showSettings = false;
-      this.backgroundColor = config.getBackgroundColor().toRgb();
-      this.labelColor = config.getLabelColor().toRgb();
-      this.streetNamesColor = config.getLabelColor().toRgb();
-      this.streetNamesStatus = 'idle';
-      this.showStreets = true;
-      this.showParcels = false;
-      this.parcelsStatus = 'idle';
-
-      document.body.style.backgroundColor = config.getBackgroundColor().toRgbString();
-      getCanvas().style.visibility = 'hidden';
     },
-
-    toPNGFile(e) {
-      scene.saveToPNG(this.name)
-    },
-
-    toSVGFile(e) { 
-      scene.saveToSVG(this.name, {
-        underSVG: this.baseMapLayer ? this.baseMapLayer.toSVG() : '',
-        extraSVG: this.streetNames ? this.streetNames.toSVG() : ''
-      })
-    },
-
-    toKMLFile() {
-      if (!this.grid) return;
-      let parcels = this.parcels && this.showParcels && this.parcels.layer ? this.parcels : null;
-      toKML(this.showStreets ? this.grid : null, {
-        name: this.name,
-        color: this.roadsLayer ? this.roadsLayer.color : this.scene.lineColor,
-        parcels: parcels && parcels.grid,
-        parcelsColor: parcels && parcels.layer.color
-      });
-    },
-
-    updateLayers() {
-      // TODO: This method likely doesn't belong here
-      let newLayers = [];
-      let lastLayer = 0;
-      let renderer = this.scene.getRenderer();
-      let root = renderer.getRoot();
-      root.children.forEach(layer => {
-        if (!layer.color) return;
-        let name = LAYER_NAMES[layer.id] || layer.id;
-        if (!name) {
-          lastLayer += 1;
-          name = 'líneas ' + lastLayer;
-        }
-        let layerColor = tinycolor.fromRatio(layer.color);
-        newLayers.push(new ColorLayer(name, layerColor, newColor => {
-          layer.color = toRatioColor(newColor);
-          renderer.renderFrame();
-          this.scene.fire('color-change', layer);
-        }));
-      });
-
-      newLayers.push(
-        new ColorLayer('fondo', this.backgroundColor, this.setBackgroundColor),
-        new ColorLayer('título', this.labelColor, newColor => this.labelColor = newColor),
-        new ColorLayer('nombres de calles', this.streetNamesColor, newColor => {
-          this.streetNamesColor = newColor;
-          if (this.streetNames) this.streetNames.color = newColor;
-        })
-      );
-
-      this.layers = newLayers;
-
-      function toRatioColor(c) {
-        return {r: c.r/0xff, g: c.g/0xff, b: c.b/0xff, a: c.a}
+    changeArea() {
+      if (this.phase === 'ready') {
+        this.askConfirm({
+          title: '¿Descartar los datos extraídos?',
+          message: 'Se quitarán del mapa las calles, parcelas y la selección actuales de ' + this.name + '. Podrás extraerlas de nuevo.',
+          label: 'Descartar y cambiar área',
+          action: () => this.resetAll()
+        });
+      } else if (this.phase === 'loading') {
+        this.cancelExtraction();
+        this.resetAll();
+      } else {
+        this.resetAll();
       }
     },
+    resetAll() {
+      this.discardMap();
+      this.place = null;
+      this.error = null;
+      this.noRoads = false;
+      appState.unsetPlace();
+      appState.enableCache();
+      this.openPanel('extract');
+    },
+    discardMap() {
+      this.map.dispose();
+      this.overlayManager.clear();
+      this.phase = 'idle';
+      this.stats = null;
+      this.area = null;
+      this.feature = null;
+      this.drawing = false;
+      this.colors = null;
+      this.layersOpen = false;
+      this.parcelsStatus = 'idle';
+      this.namesStatus = 'idle';
+      this.layers.parcels = false;
+      this.layers.streets = true;
+    },
+    extract() {
+      if (!this.place) return;
+      if (this.phase === 'ready') {
+        this.askConfirm({
+          title: '¿Volver a extraer?',
+          message: 'Se descargarán de nuevo las calles de ' + this.name + ' desde ' + SOURCES[this.source].name +
+            ' y se reemplazarán los datos actuales del mapa.',
+          label: 'Volver a extraer',
+          action: () => {
+            this.discardMap();
+            this.runExtraction();
+          }
+        });
+        return;
+      }
+      this.runExtraction();
+    },
+    runExtraction() {
+      this.phase = 'loading';
+      this.error = null;
+      this.errorIsServer = false;
+      this.noRoads = false;
+      this.loading = {message: 'Preparando la extracción...', percent: undefined, loaded: 0, still: 0};
+      let progress = this.progress = new Progress(status => this.updateProgress(status));
+      this.restartStillLoading();
 
-    syncLineColor() {
-      this.updateLayers();
+      extractRoads(this.place, this.source, progress, message => {
+        this.loading.message = message;
+      }).then(grid => {
+        if (progress !== this.progress) return;
+        if (!grid.hasRoads()) {
+          this.phase = 'idle';
+          this.noRoads = true;
+          return;
+        }
+        this.showGrid(grid);
+      }).catch(err => {
+        if (progress !== this.progress) return;
+        this.phase = 'idle';
+        if (err && err.cancelled) return;
+        console.error(err);
+        this.error = err instanceof Error ? err : new Error(err && err.message || String(err));
+        this.errorIsServer = isServerError(err);
+        notify('La extracción falló', {kind: 'error', detail: this.errorIsServer ? 'Los servidores no respondieron. Inténtalo de nuevo.' : this.error.message});
+      }).finally(() => {
+        if (progress === this.progress) clearInterval(this.stillTimer);
+      });
+    },
+    updateProgress(status) {
+      this.restartStillLoading();
+      if (status.loaded < 0) {
+        this.loading.message = 'Probando otro servidor...';
+        this.loading.loaded = -1;
+        return;
+      }
+      this.loading.loaded = status.loaded;
+      this.loading.percent = status.percent;
+      if (status.loaded > 0 && !/Descargando/.test(this.loading.message)) this.loading.message = 'Descargando calles...';
+    },
+    restartStillLoading() {
+      clearInterval(this.stillTimer);
+      this.loading.still = 0;
+      this.stillTimer = setInterval(() => {
+        this.loading.still += 1;
+      }, 10000);
+    },
+    cancelExtraction() {
+      if (this.progress) this.progress.cancel();
+      this.progress = null;
+      clearInterval(this.stillTimer);
+      this.phase = 'idle';
+      notify('Extracción cancelada');
+    },
+    showGrid(grid) {
+      savePlaceToUrl(grid);
+      if (this.place.name) appState.set('q', this.place.name.split(',')[0]);
+      this.name = (this.place.name || grid.name || '').split(',')[0];
+      this.loadedSource = grid.queryBounds && grid.queryBounds.source || 'osm';
+      this.layers.streets = true;
+      this.phase = 'ready';
+      this.map.load(grid, {baseMap: this.baseMap, showStreetNames: this.layers.names});
+      this.stats = this.map.getStats();
+      this.colors = this.map.getColors();
+      if (this.roadWidth !== 1) this.map.setRoadWidth(this.roadWidth);
+      if (this.loadParcels) {
+        this.layers.parcels = true;
+        this.map.setParcelsVisible(true);
+      }
+      this.$nextTick(() => this.map.fitToData());
+
+      let detail = formatNumber(this.stats.ways) + ' tramos de calle de ' + SOURCES[this.loadedSource].name;
+      if (grid.mergeStats) detail += ' (Overture añadió ' + formatNumber(grid.mergeStats.added) + ')';
+      notify('Extracción completada', {kind: 'success', detail});
+
+      if (this.narrow) this.extractOpen = false;
+      else if (window.innerWidth >= 1280) this.layersOpen = true;
     },
 
-    syncBackground(newBackground) {
-      this.backgroundColor = newBackground.toRgb();
-      this.updateLayers()
+    // Layers ---------------------------------------------------------------
+    toggleLayer(layer, visible) {
+      this.layers[layer] = visible;
+      if (layer === 'streets') {
+        this.map.setStreetsVisible(visible);
+        this.map.setStreetNamesVisible(visible && this.layers.names);
+      } else if (layer === 'parcels') {
+        this.map.setParcelsVisible(visible);
+      } else if (layer === 'names') {
+        this.map.setStreetNamesVisible(visible && this.layers.streets);
+      }
+      if (!visible && this.feature && (layer === 'streets' && this.feature.layer === 'roads' || layer === 'parcels' && this.feature.layer === 'parcels')) {
+        this.map.clearFeature();
+      }
     },
-    // TODO: I need two background methods?
-    updateBackground() {
-      this.setBackgroundColor(this.backgroundColor)
+    setColor(layer, color) {
+      this.map.setColor(layer, color);
+      this.colors = this.map.getColors();
     },
-    setBackgroundColor(c) {
-      this.scene.background = c;
-      document.body.style.backgroundColor = toRGBA(c);
+    setRoadWidth(width) {
+      this.roadWidth = width;
+      this.map.setRoadWidth(width);
+    },
+    setBaseMap(key) {
+      this.baseMap = key;
+      if (key === getMapStyle(this.mapStyle).baseMap) appState.unset('base');
+      else appState.set('base', key);
+      this.map.setBaseMap(key);
+    },
+
+    // Export area ----------------------------------------------------------
+    toggleDrawing() {
+      this.drawing = !this.drawing;
+      if (this.drawing && this.narrow) this.closePanels();
+      if (!this.drawing) this.map.setDraft(null);
+    },
+    startDraw(e) {
+      let rect = e.currentTarget.getBoundingClientRect();
+      this.drawStart = {x: e.clientX - rect.left, y: e.clientY - rect.top};
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    moveDraw(e) {
+      if (!this.drawStart) return;
+      let rect = e.currentTarget.getBoundingClientRect();
+      this.map.setDraft(makeRect(this.drawStart, {x: e.clientX - rect.left, y: e.clientY - rect.top}));
+    },
+    endDraw(e) {
+      if (!this.drawStart) return;
+      let rect = e.currentTarget.getBoundingClientRect();
+      let box = makeRect(this.drawStart, {x: e.clientX - rect.left, y: e.clientY - rect.top});
+      this.drawStart = null;
+      this.map.setDraft(null);
+      if (box.width < 8 || box.height < 8) {
+        notify('El rectángulo es demasiado pequeño', {detail: 'Arrastra sobre el mapa para dibujarlo.'});
+        return;
+      }
+      this.drawing = false;
+      this.area = this.map.setAreaFromScreenRect(box);
+      this.exportOptions.onlyArea = true;
+      notify('Área de exportación definida', {kind: 'success', detail: 'El KML y el PNG se recortarán a esta zona.'});
+    },
+    cancelDraw() {
+      this.drawStart = null;
+      this.map.setDraft(null);
+    },
+    useViewAsArea() {
+      this.drawing = false;
+      this.area = this.map.useViewAsArea();
+      this.exportOptions.onlyArea = true;
+      notify('Área de exportación definida', {kind: 'success', detail: 'Se usó la vista actual del mapa.'});
+    },
+    clearArea() {
+      this.area = null;
+      this.map.clearArea();
+    },
+
+    // Export ---------------------------------------------------------------
+    setExportOption(key, value) {
+      this.exportOptions[key] = value;
+    },
+    exportFromMenu(format) {
+      this.exportOptions.format = format;
+      this.download();
+    },
+    download() {
+      if (this.phase !== 'ready' || this.exporting) return;
+      let o = this.exportOptions;
+      let onlyArea = Boolean(o.onlyArea && this.area);
+      let fileName = this.fileName;
+      if (o.format === 'kml') {
+        let includeParcels = o.kmlParcels && this.parcelsStatus === 'ready';
+        if (!o.kmlStreets && !includeParcels) {
+          notify('No hay nada que exportar', {kind: 'error', detail: 'Activa las calles o las parcelas en las opciones del KML.'});
+          return;
+        }
+        this.exporting = true;
+        // Let the button show its busy state before the (synchronous) export.
+        setTimeout(() => {
+          this.map.exportKML({name: this.name, fileName, includeStreets: o.kmlStreets, includeParcels, onlyArea})
+            .then(result => {
+              let parts = [];
+              if (o.kmlStreets) parts.push(formatNumber(result.streets) + ' calles con nombre, ' + formatNumber(result.segments) + ' tramos');
+              if (includeParcels) parts.push(formatNumber(result.parcels) + ' parcelas');
+              notify('KML descargado', {kind: 'success', detail: parts.join(' · ') + ' · ' + formatBytes(result.bytes)});
+            })
+            .catch(err => notify('No se pudo exportar el KML', {kind: 'error', detail: err.message}))
+            .finally(() => {
+              this.exporting = false;
+            });
+        }, 30);
+      } else if (o.format === 'png') {
+        this.exporting = true;
+        this.map.renderImage({baseMap: o.baseMap, streetNames: o.streetNames, title: o.title, onlyArea})
+          .then(canvas => {
+            let url;
+            try {
+              url = canvas.toDataURL('image/png');
+            } catch (e) {
+              throw explainCanvasError(e);
+            }
+            this.preview = {url, width: canvas.width, height: canvas.height, fileName, canvas};
+          })
+          .catch(err => notify('No se pudo crear la imagen', {kind: 'error', detail: err.message}))
+          .finally(() => {
+            this.exporting = false;
+          });
+      } else {
+        try {
+          let result = this.map.exportSVG({name: this.name, fileName, baseMap: o.baseMap, streetNames: o.streetNames, title: o.title});
+          notify('SVG descargado', {kind: 'success', detail: formatBytes(result.bytes)});
+        } catch (e) {
+          notify('No se pudo exportar el SVG', {kind: 'error', detail: explainCanvasError(e).message});
+        }
+      }
+    },
+    downloadPreview() {
+      let {canvas, fileName} = this.preview;
+      canvasToPNG(canvas, fileName)
+        .then(result => notify('PNG descargado', {kind: 'success', detail: result.width + ' × ' + result.height + ' px · ' + formatBytes(result.bytes)}))
+        .catch(err => notify('No se pudo descargar el PNG', {kind: 'error', detail: err.message}));
+      this.closePreview();
+    },
+    closePreview() {
+      this.preview = null;
+    },
+
+    // Dialogs and keyboard -------------------------------------------------
+    askConfirm(confirm) {
+      this.confirm = confirm;
+    },
+    runConfirmed() {
+      let action = this.confirm.action;
+      this.confirm = null;
+      action();
+    },
+    onKeyDown(e) {
+      if (e.key !== 'Escape' || this.helpOpen || this.confirm || this.preview) return;
+      if (this.drawing) {
+        this.drawing = false;
+        this.cancelDraw();
+      } else if (this.narrow && (this.extractOpen || this.layersOpen)) {
+        this.closePanels();
+      }
+    },
+    onMapKey(e) {
+      if (this.phase !== 'ready' || e.target !== e.currentTarget) return;
+      let step = 80;
+      let handled = true;
+      switch (e.key) {
+        case '+': case '=': this.map.zoomBy(0.5); break;
+        case '-': case '_': this.map.zoomBy(-1); break;
+        case '0': this.map.fitToData(); break;
+        case 'ArrowLeft': this.map.panBy(step, 0); break;
+        case 'ArrowRight': this.map.panBy(-step, 0); break;
+        case 'ArrowUp': this.map.panBy(0, step); break;
+        case 'ArrowDown': this.map.panBy(0, -step); break;
+        default: handled = false;
+      }
+      if (handled) e.preventDefault();
+    },
+    onMapLeave() {
+      this.pointer = null;
     }
   }
 }
 
-function toRGBA(c) {
-    return `rgba(${c.r}, ${c.g}, ${c.b}, ${c.a})`;
+function makeRect(a, b) {
+  return {
+    x: Math.min(a.x, b.x),
+    y: Math.min(a.y, b.y),
+    width: Math.abs(a.x - b.x),
+    height: Math.abs(a.y - b.y)
+  };
 }
 </script>
 
-<style lang='stylus'>
-@import('./vars.styl');
-
-#app {
-  margin: 12px auto;
-  max-height: 100vh;
-  position: absolute;
-  // Centered at the top of the screen.
-  left: 0;
-  right: 0;
-  width: fit-content;
-  z-index: 1;
-  font-family: ui-font;
-  color: strong-text;
+<style>
+/* Workspace layout: top bar, «Extraer datos» on the left, the map in the
+   middle and «Capas y datos» on the right. */
+body {
+  --stage-left: 0px;
+  --stage-right: 0px;
 }
 
-.app-panel {
+#map-stage {
+  position: fixed;
+  top: var(--topbar-height);
+  left: var(--stage-left);
+  right: var(--stage-right);
+  bottom: 0;
+  overflow: hidden;
+  background: var(--app-bg);
+}
+#map-stage:focus-visible {
+  box-shadow: inset 0 0 0 3px var(--sd-cyan);
+}
+#canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  visibility: hidden;
+}
+
+.panel-left,
+.panel-right {
+  position: fixed;
+  top: var(--topbar-height);
+  bottom: 0;
+  z-index: 30;
+}
+.panel-left {
+  left: 0;
+  width: var(--panel-width);
+  border-right: 1px solid var(--border);
+}
+.panel-right {
+  right: 0;
+  width: var(--layers-width);
+  border-left: 1px solid var(--border);
+}
+
+@media (min-width: 1024px) {
+  body.extract-open {
+    --stage-left: var(--panel-width);
+  }
+  body.layers-open {
+    --stage-right: var(--layers-width);
+  }
+}
+
+.panel-scrim {
+  display: none;
+}
+
+/* Tablets: panels slide over the map instead of pushing it. */
+@media (max-width: 1023px) {
+  .panel-left,
+  .panel-right {
+    width: min(380px, calc(100vw - 48px));
+    box-shadow: var(--shadow-lg);
+    animation: sd-slide-in 160ms ease-out;
+  }
+  .panel-scrim {
+    display: block;
+    position: fixed;
+    inset: var(--topbar-height) 0 0 0;
+    z-index: 25;
+    background: var(--scrim);
+    animation: sd-fade 120ms ease-out;
+  }
+}
+
+/* Phones: panels become bottom sheets and leave the top of the map visible. */
+@media (max-width: 720px) {
+  .panel-left,
+  .panel-right {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: auto;
+    max-height: calc(100% - var(--topbar-height) - 64px);
+    height: 78vh;
+    border: 0;
+    border-top: 1px solid var(--border);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    animation: sd-sheet-in 180ms ease-out;
+  }
+  .panel-left .panel-header::before,
+  .panel-right .panel-header::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    margin-left: -18px;
+    border-radius: 2px;
+    background: var(--surface-3);
+  }
+  .panel-header {
+    position: relative;
+    padding-top: 18px;
+  }
+  .panel-scrim {
+    background: rgba(11, 20, 36, 0.25);
+  }
+}
+@media (min-width: 1024px) {
+  .panel-close {
+    display: none !important;
+  }
+}
+
+@keyframes sd-slide-in {
+  from { opacity: 0; transform: translateX(-12px); }
+}
+@keyframes sd-sheet-in {
+  from { transform: translateY(24px); opacity: 0; }
+}
+
+.map-bottom-left {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 5;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: calc(100% - 24px);
+}
+.map-loading {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  z-index: 6;
+  transform: translateX(-50%);
+  display: flex;
   align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.map-loading svg {
+  color: var(--accent-text);
+}
+.draw-surface {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  cursor: crosshair;
+  touch-action: none;
+}
+.draw-hint {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: var(--sd-navy);
+  color: var(--sd-white);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: var(--shadow);
 }
 
+/* Place name and data credits: drawn on the map and copied into exports. */
+.city-name {
+  position: fixed;
+  z-index: 3;
+  right: calc(var(--stage-right) + 28px);
+  bottom: 52px;
+  font-size: 24px;
+}
+.city-name input {
+  font-size: 24px;
+}
+.license {
+  position: fixed;
+  z-index: 3;
+  right: calc(var(--stage-right) + 28px);
+  bottom: 24px;
+  padding-right: 8px;
+  font-family: 'Roboto', var(--font-ui);
+  font-size: 12px;
+  text-align: right;
+}
+.license a {
+  display: inline-block;
+  text-decoration: none;
+}
 .can-drag {
   border: 1px solid transparent;
 }
-
 .drag-overlay {
   position: fixed;
+  inset: 0;
+  z-index: 80;
   background: transparent;
-  left: 0;
-  top: 0;
-  right: 0;
-  bottom: 0;
 }
-
 .overlay-active {
-  border: 1px dashed highlight-color;
+  border: 1px dashed var(--sd-cyan);
 }
 .overlay-active.exclusive {
   border-style: solid;
 }
-
-// One horizontal bar with every action: layers, export, settings, new city.
-.menu-bar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  max-width: calc(100vw - 24px);
-  padding: 5px;
-  box-sizing: border-box;
-  overflow-x: auto;
-  scrollbar-width: none;
-  background: card-background;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  border-radius: 999px;
-  box-shadow: card-shadow;
-  &::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-.menu-group {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.menu-separator {
-  flex-shrink: 0;
-  width: 1px;
-  height: 22px;
-  margin: 0 4px;
-  background: border-color;
-}
-
-.menu-bar a.menu-item {
-  flex-shrink: 0;
-  height: 36px;
-  margin: 0;
-  padding: 0 16px;
-  border: 0;
-  border-radius: 999px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  white-space: nowrap;
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  color: muted-text;
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.1s;
-  &:hover {
-    color: strong-text;
-    background: soft-background;
-  }
-  &:active {
-    transform: scale(0.97);
-  }
-  &.active {
-    color: white;
-    background: brand-gradient;
-    box-shadow: brand-shadow;
-  }
-  &.parcels-toggle.active {
-    background: linear-gradient(90deg, #f97316 0%, #ea580c 100%);
-    box-shadow: 0 6px 20px rgba(234, 88, 12, 0.35);
-  }
-  &.loading {
-    opacity: 0.85;
-  }
-  &.try-another {
-    color: strong-text;
-  }
-}
-
-.layer-notice {
-  margin-top: 8px;
-  padding: 10px 14px;
-  width: desktop-controls-width;
-  box-sizing: border-box;
-  font-size: 13px;
-  color: strong-text;
-  background: card-background;
-  border-radius: 12px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.12);
-  a {
-    color: highlight-color;
-  }
-}
-
-.col {
-  display: flex;
-  flex: 1;
-  align-items: center;
-}
-
-.street-names-notice {
-  position: fixed;
-  left: 12px;
-  bottom: 12px;
-  z-index: 1;
-  padding: 8px 14px;
-  font-family: ui-font;
-  font-size: 13px;
-  font-weight: 500;
-  color: strong-text;
-  background: card-background;
-  border-radius: 999px;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.14);
-}
-
-.base-map-label {
-  align-items: center;
-}
-
-.select {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 100%;
-  padding: 8px 34px 8px 12px;
-  font-family: ui-font;
-  font-size: 14px;
-  color: strong-text;
-  border: 1px solid border-color;
-  border-radius: 10px;
-  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
-  cursor: pointer;
-  &:focus {
-    outline: none;
-    border-color: highlight-color;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
-  }
-}
-
-.street-names-toggle {
-  white-space: nowrap;
-  margin-right: 8px;
-  cursor: pointer;
-  gap: 10px;
-
-  // A switch instead of the default checkbox.
-  input {
-    appearance: none;
-    -webkit-appearance: none;
-    position: relative;
-    flex-shrink: 0;
-    width: 38px;
-    height: 22px;
-    margin: 0;
-    border-radius: 999px;
-    background: #CBD5E1;
-    cursor: pointer;
-    transition: background 0.2s;
-    &::after {
-      content: '';
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: white;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-      transition: transform 0.2s;
-    }
-    &:checked {
-      background: highlight-color;
-    }
-    &:checked::after {
-      transform: translateX(16px);
-    }
-    &:focus-visible {
-      outline: 2px solid highlight-color;
-      outline-offset: 2px;
-    }
-  }
-}
-
-.street-names-status {
-  font-size: 13px;
-  color: muted-text;
-}
-
-.row {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  min-height: 36px;
-  font-size: 14px;
-}
-
-.colors {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 6px 0;
-
-  .color-container {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    width: 64px;
-  }
-
-  .color-label {
-    margin-top: 4px;
-    font-size: 11px;
-    color: muted-text;
-    text-align: center;
-  }
-}
-
-a {
-  border: 1px solid transparent;
-  margin: -1px;
-  text-decoration: none;
-  color: highlight-color
-}
-a:focus {
-  outline: none;
-}
-a:focus-visible {
-  outline: 2px solid highlight-color;
-  outline-offset: 2px;
-}
-
-.print-window {
-  margin-top: 10px;
-  max-height: calc(100vh - 136px);
-  overflow-y: auto;
-  width: desktop-controls-width;
-  padding: 18px 20px 20px;
-  background: card-background;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(15, 23, 42, 0.06);
-  border-radius: card-radius;
-  box-shadow: card-shadow;
-  animation: panelIn 0.3s cubic-bezier(.22, 1, .36, 1) both;
-
-  h3 {
-    margin: 20px 0 6px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    text-align: left;
-    color: highlight-color;
-  }
-  h3:first-child {
-    margin-top: 0;
-  }
-
-  .row .c-2 {
-    font-size: 13px;
-    color: muted-text;
-  }
-
-  p {
-    font-size: 13px;
-    line-height: 1.5;
-    color: muted-text;
-  }
-}
-
-@keyframes panelIn {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.message {
-  background: soft-background;
-  border-radius: 10px;
-}
-
-.preview-actions {
-  display: flex;
-  padding: 8px 0;
-  margin-left: -8px;
-  margin-bottom: 14px;
-  margin-top: 1px;
-  width: desktop-controls-width;
-  flex-direction: column;
-  align-items: stretch;
-  font-size: 14px;
-  align-items: center;
-  display: flex;
-
-  .popup-help {
-    text-align: center;
-  }
-}
-
-.city-name {
-  position: absolute;
-  right: 32px;
-  bottom: 54px;
-  font-size: 24px;
-  color: #434343;
-  input {
-    font-size: 24px;
-  }
-}
-
-.license {
-  text-align: right;
-  position: fixed;
-  font-family: labels-font;
-  right: 32px;
-  bottom: 32px;
-  font-size: 12px;
-  padding-right: 8px;
-  a {
-    text-decoration: none;
-    display: inline-block;
-  }
-}
-
-.c-2 {
-  flex: 2
-}
-
-@media (max-width: small-screen) {
-  #app {
-    width: calc(100% - 16px);
-    margin: 8px;
-
-    .preview-actions,.error,
-    .menu-bar, .print-window, .layer-notice {
-      width: 100%;
-    }
-    .loading-container {
-      font-size: 12px;
-    }
-
-    .print-window {
-      font-size: 14px;
-      max-height: calc(100vh - 128px);
-      padding: 16px;
-    }
-    // On phones the bar wraps instead of hiding buttons off-screen.
-    .menu-bar {
-      flex-wrap: wrap;
-      justify-content: center;
-      row-gap: 4px;
-      border-radius: 22px;
-    }
-    .menu-separator {
-      display: none;
-    }
-    .menu-bar a.menu-item {
-      padding: 0 12px;
-      font-size: 13px;
-    }
-
-  }
-  .city-name  {
+@media (max-width: 720px) {
+  .city-name {
     right: 8px;
-    bottom: 24px;
+    bottom: 34px;
+    font-size: 18px;
   }
-  .license  {
+  .city-name input {
+    font-size: 18px;
+  }
+  .license {
     right: 8px;
-    bottom: 8px;
+    bottom: 10px;
+    font-size: 10px;
+  }
+  .map-bottom-left {
+    bottom: 64px;
   }
 }
-
 </style>
