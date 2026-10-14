@@ -1,7 +1,7 @@
 <template>
   <find-place v-if='!placeFound' @loaded='onGridLoaded'></find-place>
   <div id="app">
-    <div v-if='placeFound'>
+    <div v-if='placeFound' class='app-panel'>
       <nav class='menu-bar' aria-label='Menú'>
         <div class='menu-group'>
           <a href='#' class='menu-item layer-toggle streets-toggle' :class='{active: showStreets}' @click.prevent='toggleStreets'>Calles</a>
@@ -360,12 +360,22 @@ function toRGBA(c) {
 @import('./vars.styl');
 
 #app {
-  margin: 12px;
+  margin: 12px auto;
   max-height: 100vh;
   position: absolute;
+  // Centered at the top of the screen.
+  left: 0;
+  right: 0;
+  width: fit-content;
   z-index: 1;
   font-family: ui-font;
   color: strong-text;
+}
+
+.app-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .can-drag {
