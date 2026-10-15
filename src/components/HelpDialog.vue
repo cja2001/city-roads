@@ -52,7 +52,7 @@
       <ul class='help-credits'>
         <li>Datos de calles, parcelas y búsqueda © <a href='https://www.openstreetmap.org/copyright' target='_blank' rel='noopener'>colaboradores de OpenStreetMap</a>, licencia ODbL.</li>
         <li>Datos de <a href='https://overturemaps.org' target='_blank' rel='noopener'>Overture Maps Foundation</a> (capa de transporte, ODbL).</li>
-        <li>Mapas base: © <a href='https://carto.com/attributions' target='_blank' rel='noopener'>CARTO</a>, teselas de OpenStreetMap e imágenes de Esri, Maxar y Earthstar Geographics, según el mapa elegido.</li>
+        <li>Mapas base: tierra y agua de Overture Maps Foundation, teselas de OpenStreetMap e imágenes de Esri, Maxar y Earthstar Geographics, según el mapa elegido.</li>
         <li>Basado en <a href='https://github.com/anvaka/city-roads' target='_blank' rel='noopener'>city-roads</a> de Andrei Kashcha (licencia MIT).</li>
         <li>Iconos: <a href='https://lucide.dev' target='_blank' rel='noopener'>Lucide</a> (licencia ISC).</li>
       </ul>

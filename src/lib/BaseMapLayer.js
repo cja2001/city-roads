@@ -1,29 +1,21 @@
 import bus from './bus.js';
+import {renderOvertureTile} from './overtureBase.js';
 
 const EARTH_RADIUS = 6371393; // Same scale that Grid uses for its mercator projection.
 const TILE_SIZE = 256;
 const MAX_TILES = 150;
 const MAX_CACHED_TILES = 600;
+// Vector tiles are kept as canvases, which take far more memory than images.
+const MAX_CACHED_VECTOR_TILES = 200;
 
 /**
- * Raster tile providers. All of them allow cross-origin loading, so the tiles
- * can be copied into exported images.
+ * Tile providers. Raster ones (with `url`) allow cross-origin loading, so the
+ * tiles can be copied into exported images. Vector ones (with `render`) are
+ * drawn on a canvas here, which keeps exports working too.
  */
 export const BASE_MAPS = {
   none: {
     name: 'Ninguno'
-  },
-  map: {
-    name: 'Mapa',
-    url: (z, x, y, retina) => `https://${'abcd'[(x + y) % 4]}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/${z}/${x}/${y}${retina ? '@2x' : ''}.png`,
-    maxZoom: 20,
-    attribution: '© CARTO'
-  },
-  dark: {
-    name: 'Mapa oscuro',
-    url: (z, x, y, retina) => `https://${'abcd'[(x + y) % 4]}.basemaps.cartocdn.com/rastertiles/dark_nolabels/${z}/${x}/${y}${retina ? '@2x' : ''}.png`,
-    maxZoom: 20,
-    attribution: '© CARTO'
   },
   osm: {
     name: 'OpenStreetMap',
@@ -37,6 +29,14 @@ export const BASE_MAPS = {
     url: (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`,
     maxZoom: 19,
     attribution: 'Imágenes © Esri, Maxar, Earthstar Geographics'
+  },
+  overture: {
+    name: 'Overture Maps',
+    vector: true,
+    render: renderOvertureTile,
+    // Overture tiles stop at zoom 13; two more levels are drawn from them.
+    maxZoom: 15,
+    attribution: 'Overture Maps Foundation · © OpenStreetMap'
   }
 };
 
@@ -190,17 +190,33 @@ export default class BaseMapLayer {
     let tile = this.tiles.get(key);
     if (tile) return tile;
 
-    let image = new Image();
-    image.crossOrigin = 'anonymous';
-    tile = {image, loaded: false};
-    image.onload = () => {
-      tile.loaded = true;
-      this.requestRender();
-    };
-    image.src = this.style.url(z, x, y, retina);
+    let style = this.style;
+    if (style.vector) {
+      tile = {image: null, loaded: false};
+      style.render(z, x, y, retina).then(canvas => {
+        // The style may have changed while the tile was being drawn.
+        if (this.tiles.get(key) !== tile) return;
+        tile.image = canvas;
+        tile.loaded = true;
+        this.requestRender();
+      }).catch(error => {
+        if (!this.warned) console.warn(`${style.name}: no se pudo cargar el mapa base`, error);
+        this.warned = true;
+        this.tiles.delete(key); // lets the next render try again
+      });
+    } else {
+      let image = new Image();
+      image.crossOrigin = 'anonymous';
+      tile = {image, loaded: false};
+      image.onload = () => {
+        tile.loaded = true;
+        this.requestRender();
+      };
+      image.src = style.url(z, x, y, retina);
+    }
     this.tiles.set(key, tile);
 
-    if (this.tiles.size > MAX_CACHED_TILES) {
+    if (this.tiles.size > (style.vector ? MAX_CACHED_VECTOR_TILES : MAX_CACHED_TILES)) {
       // Maps keep insertion order, so the first key is the oldest tile.
       this.tiles.delete(this.tiles.keys().next().value);
     }

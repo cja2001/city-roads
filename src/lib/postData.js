@@ -1,11 +1,11 @@
 import request from './request.js';
 import Progress from './Progress.js';
 
+// Public Overpass servers come and go. Others (overpass.private.coffee,
+// overpass.kumi.systems, maps.mail.ru) stopped answering in October 2026.
 let backends = [
   'https://overpass-api.de/api/interpreter',
-  'https://overpass.private.coffee/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter'
+  'https://lz4.overpass-api.de/api/interpreter'
 ]
 
 // When a server is overloaded it may accept the request and never answer.

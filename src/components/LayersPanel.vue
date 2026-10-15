@@ -77,7 +77,7 @@
               <span class='layer-icon' aria-hidden='true'><map-icon :size='17'/></span>
               <span class='layer-text'>
                 <label class='layer-name' for='base-map-select'>Mapa base</label>
-                <span class='layer-meta'>Teselas ráster · {{baseMapAttribution || 'sin mapa base'}}</span>
+                <span class='layer-meta'>{{baseMaps[baseMap] && baseMaps[baseMap].vector ? 'Teselas vectoriales' : 'Teselas ráster'}} · {{baseMapAttribution || 'sin mapa base'}}</span>
               </span>
             </div>
             <div class='layer-style'>
