@@ -284,11 +284,13 @@ export default {
       this.applyMapStyle(this.theme);
     },
     applyMapStyle(name) {
+      // The base map follows the theme only while it is still the previous theme's default.
+      let followsTheme = this.baseMap === getMapStyle(this.mapStyle).baseMap;
       this.mapStyle = name;
       setMapStyle(name);
       let style = getMapStyle(name);
       this.titleColor = tinycolor(style.title).toRgb();
-      if (this.baseMap === 'map' || this.baseMap === 'dark') this.setBaseMap(style.baseMap);
+      if (followsTheme) this.setBaseMap(style.baseMap);
       if (!this.map.loaded) return;
       this.map.setColor('background', style.background);
       this.map.setColor('roads', style.roads);

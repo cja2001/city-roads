@@ -11,7 +11,7 @@ export const MAP_STYLES = {
     parcels: 'rgba(217, 119, 6, 0.6)',
     labels: '#0B1424',
     title: '#0B1424',
-    baseMap: 'map'
+    baseMap: 'overture'
   },
   dark: {
     background: '#0B1424',
@@ -19,7 +19,7 @@ export const MAP_STYLES = {
     parcels: 'rgba(251, 191, 36, 0.5)',
     labels: '#E2E8F0',
     title: '#F1F5F9',
-    baseMap: 'dark'
+    baseMap: 'none'
   }
 };
 
